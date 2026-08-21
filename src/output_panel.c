@@ -447,10 +447,69 @@ static double get_toc_pulse(struct processing_buffers *p)
 	return p->toc_pulse;
 }
 
+/* Overlay three-phase markers (unlock/impulse/drop) on the tic or toc
+ * waveform panel. Called AFTER expose_waveform() has drawn the trace, so
+ * the markers float on top. Colors: blue=unlock, green=impulse, red=drop.
+ * We don't know the X-axis mapping without duplicating expose_waveform's
+ * internals, so we approximate: markers span the full panel height at
+ * relative positions inside the pulse window (period/8 wide centered on
+ * the tic/toc). Good enough as a visual cue; not pixel-perfect. */
+static void overlay_three_phase(struct output_panel *op, GtkWidget *da, cairo_t *c,
+                                int unlock, int impulse, int drop)
+{
+	struct snapshot *snst = op->snst;
+	struct processing_buffers *p = snst->pb;
+	if(!p || unlock < 0 || impulse < 0 || drop < 0) return;
+
+	GtkAllocation temp;
+	gtk_widget_get_allocation(da, &temp);
+	int width = temp.width;
+	int height = temp.height;
+
+	/* Map a sample index within the waveform to an X pixel. The waveform
+	 * spans one period; expose_waveform uses a window of +/- period*SPAN
+	 * around the tic/toc. We draw markers at fraction-of-period positions
+	 * for a reasonable approximation. */
+	double period = p->period;
+	if(period <= 0) return;
+
+	/* Marker X positions relative to tic: the three peaks are waveform
+	 * indices unlock/impulse/drop within [0..wf_size); place at left/mid/right
+	 * of the pulse window (period/8 wide). */
+	int markers[3] = { unlock, impulse, drop };
+	double colors[3][3] = {
+		{0.0, 0.0, 1.0},   /* unlock  - blue */
+		{0.0, 0.8, 0.0},   /* impulse - green */
+		{1.0, 0.0, 0.0},   /* drop    - red */
+	};
+	int i;
+	for(i = 0; i < 3; i++) {
+		/* Approx X: normalize marker to [0,1] of the pulse window (period/8)
+		 * then map into the +/- NEGATIVE_SPAN..POSITIVE_SPAN axis. The pulse
+		 * window center is at x=0 in the wave display (the tic). */
+		double rel = ((double)markers[i] - (double)p->tic) / (period / 8.0);
+		rel = (rel + 0.5) / 1.0;  /* 0..1 across the pulse window approx */
+		if(rel < 0.0) rel = 0.0;
+		if(rel > 1.0) rel = 1.0;
+		/* Map to the visible axis window */
+		double axis_pos = (double)NEGATIVE_SPAN + rel * 1.0; /* spans 1 unit */
+		if(axis_pos < -NEGATIVE_SPAN) axis_pos = -NEGATIVE_SPAN;
+		if(axis_pos > POSITIVE_SPAN)  axis_pos = POSITIVE_SPAN;
+		double x = (NEGATIVE_SPAN + axis_pos) * width / (POSITIVE_SPAN + NEGATIVE_SPAN);
+
+		cairo_set_source_rgb(c, colors[i][0], colors[i][1], colors[i][2]);
+		cairo_set_line_width(c, 1.5);
+		cairo_move_to(c, x + .5, 2);
+		cairo_line_to(c, x + .5, height - 2);
+		cairo_stroke(c);
+	}
+}
+
 static gboolean tic_draw_event(GtkWidget *widget, cairo_t *c, struct output_panel *op)
 {
 	UNUSED(widget);
 	expose_waveform(op, op->tic_drawing_area, c, get_tic, get_tic_pulse);
+	overlay_three_phase(op, op->tic_drawing_area, c, op->snst->pb ? op->snst->pb->unlock : -1, op->snst->pb ? op->snst->pb->impulse : -1, op->snst->pb ? op->snst->pb->drop : -1);
 	return FALSE;
 }
 
@@ -458,6 +517,7 @@ static gboolean toc_draw_event(GtkWidget *widget, cairo_t *c, struct output_pane
 {
 	UNUSED(widget);
 	expose_waveform(op, op->toc_drawing_area, c, get_toc, get_toc_pulse);
+	overlay_three_phase(op, op->toc_drawing_area, c, op->snst->pb ? op->snst->pb->unlock2 : -1, op->snst->pb ? op->snst->pb->impulse2 : -1, op->snst->pb ? op->snst->pb->drop2 : -1);
 	return FALSE;
 }
 
@@ -720,6 +780,165 @@ static void handle_clear_trace(GtkButton *b, struct output_panel *op)
 	}
 }
 
+#define SPECTRUM_WINDOW_MS   50
+#define SPECTRUM_FFT_SIZE     1024
+#define SPECTRUM_BINS         (SPECTRUM_FFT_SIZE/2 + 1)
+#define SPECTRUM_MAX_FREQ_HZ  8000
+#define SPECTRUM_COLUMNS      120 /* 4 s @ 30 fps */
+
+struct spectrum_state {
+	float *in;
+	fftwf_complex *out;
+	fftwf_plan plan;
+	float history[SPECTRUM_COLUMNS][SPECTRUM_BINS];
+	int wp;
+};
+
+static void spectrum_state_init(struct spectrum_state *s)
+{
+	s->in  = fftwf_malloc(SPECTRUM_FFT_SIZE * sizeof(float));
+	s->out = fftwf_malloc(SPECTRUM_BINS * sizeof(fftwf_complex));
+	s->plan = fftwf_plan_dft_r2c_1d(SPECTRUM_FFT_SIZE, s->in, s->out, FFTW_ESTIMATE);
+	memset(s->history, 0, sizeof(s->history));
+	s->wp = 0;
+}
+
+static void spectrum_state_destroy(struct spectrum_state *s)
+{
+	fftwf_destroy_plan(s->plan);
+	fftwf_free(s->in);
+	fftwf_free(s->out);
+}
+
+/* GDestroyNotify wrapper so GTK frees the spectrum_state automatically when
+ * the drawing area widget is destroyed — op_destroy() no longer needs to
+ * touch it (the widget is already gone by the time op_destroy runs). */
+static void spectrum_state_destroy_notify(gpointer data)
+{
+	struct spectrum_state *st = data;
+	if(!st) return;
+	spectrum_state_destroy(st);
+	free(st);
+}
+
+static void spectrum_color_for_db(double db, double *r, double *g, double *b)
+{
+	/* Map dB in [-60, 0] to a heat map: dark blue → green → yellow → red. */
+	double t = (db + 60.0) / 60.0;
+	if(t < 0.0) t = 0.0;
+	if(t > 1.0) t = 1.0;
+	if(t < 0.33) {
+		double u = t / 0.33;
+		*r = 0.0; *g = 0.0; *b = 0.2 + 0.3 * u;
+	} else if(t < 0.66) {
+		double u = (t - 0.33) / 0.33;
+		*r = 0.0; *g = 0.6 * u; *b = 0.5 - 0.5 * u;
+	} else if(t < 0.85) {
+		double u = (t - 0.66) / 0.19;
+		*r = u; *g = 0.6 + 0.4 * u; *b = 0.0;
+	} else {
+		double u = (t - 0.85) / 0.15;
+		*r = 1.0; *g = 1.0 - 0.8 * u; *b = 0.0;
+	}
+}
+
+static gboolean spectrum_draw_event(GtkWidget *widget, cairo_t *c, struct output_panel *op)
+{
+	UNUSED(op);
+	cairo_init(c);
+	GtkAllocation temp;
+	gtk_widget_get_allocation(widget, &temp);
+	int width = temp.width;
+	int height = temp.height;
+
+	struct spectrum_state *st = g_object_get_data(G_OBJECT(widget), "spectrum-state");
+	if(!st) return FALSE;
+
+	int columns = SPECTRUM_COLUMNS;
+	int x, y;
+	/* For each column in the ring buffer, draw a vertical strip of pixels.
+	 * Newest column is at the right; older ones scroll left. */
+	for(x = 0; x < columns; x++) {
+		int col_index = (st->wp + x) % columns;
+		int px = x * width / columns;
+		int pw = (x + 1) * width / columns - px;
+		/* For each pixel row, find the dominant bin and color it. */
+		for(y = 0; y < height; y++) {
+			/* Invert y to frequency: y=0 → top=max_freq, y=height → bottom=0 */
+			double freq = SPECTRUM_MAX_FREQ_HZ * (1.0 - (double)y / height);
+			int bin = (int)(freq * SPECTRUM_FFT_SIZE / PA_SAMPLE_RATE + 0.5);
+			if(bin >= SPECTRUM_BINS) bin = SPECTRUM_BINS - 1;
+			if(bin < 0) bin = 0;
+			float mag = st->history[col_index][bin];
+			/* mag is linear amplitude; convert to dB. Use 1e-10 floor. */
+			double db = 20.0 * log10(mag + 1e-10);
+			double r, g, b;
+			spectrum_color_for_db(db, &r, &g, &b);
+			cairo_set_source_rgb(c, r, g, b);
+			cairo_rectangle(c, px, y, pw, 1);
+			cairo_fill(c);
+		}
+	}
+
+	/* Frequency axis ticks (subtle, on the right) */
+	cairo_set_source_rgba(c, 0.8, 0.8, 0.8, 0.5);
+	cairo_set_font_size(c, 9);
+	char s[16];
+	int tick_freqs[] = {1000, 3000, 5000, 8000};
+	for(y = 0; y < 4; y++) {
+		int freq = tick_freqs[y];
+		int row = (int)(height * (1.0 - (double)freq / SPECTRUM_MAX_FREQ_HZ));
+		if(row < 0 || row >= height) continue;
+		cairo_move_to(c, 2, row - 1);
+		sprintf(s, "%d", freq / 1000);
+		cairo_show_text(c, s);
+	}
+
+	return FALSE;
+}
+
+static gboolean spectrum_tick(struct output_panel *op)
+{
+	GtkWidget *w = op->spectrum_drawing_area;
+	struct spectrum_state *st = g_object_get_data(G_OBJECT(w), "spectrum-state");
+	if(!st) return G_SOURCE_CONTINUE;
+
+	/* Read 50 ms of audio */
+	int n = PA_SAMPLE_RATE * SPECTRUM_WINDOW_MS / 1000;
+	float buf[n];
+	int got = get_recent_audio(buf, n);
+	if(got <= 0) {
+		gtk_widget_queue_draw(w);
+		return G_SOURCE_CONTINUE;
+	}
+
+	/* Copy into FFT input with Hann window, zero-padded if got < SPECTRUM_FFT_SIZE */
+	int i;
+	for(i = 0; i < SPECTRUM_FFT_SIZE; i++) {
+		double win = 0.0;
+		if(i < got && got > 1) {
+			/* Hann window */
+			win = 0.5 * (1.0 - cos(2.0 * M_PI * i / (got - 1)));
+		}
+		st->in[i] = (float)win * (i < got ? buf[i] : 0.0f);
+	}
+
+	fftwf_execute(st->plan);
+
+	/* Store magnitude (linear) in the ring buffer */
+	int col = st->wp;
+	for(i = 0; i < SPECTRUM_BINS; i++) {
+		float re = crealf(st->out[i]);
+		float im = cimagf(st->out[i]);
+		st->history[col][i] = sqrtf(re * re + im * im);
+	}
+	st->history[col][0] = 0; /* drop DC */
+	st->wp = (col + 1) % SPECTRUM_COLUMNS;
+
+	gtk_widget_queue_draw(w);
+	return G_SOURCE_CONTINUE;
+}
+
 static void handle_center_trace(GtkButton *b, struct output_panel *op)
 {
 	UNUSED(b);
@@ -778,6 +997,11 @@ void op_set_border(struct output_panel *op, int i)
 
 void op_destroy(struct output_panel *op)
 {
+	if(op->spectrum_timeout)
+		g_source_remove(op->spectrum_timeout);
+	/* spectrum_state is freed automatically by the GDestroyNotify attached to
+	 * the drawing area widget; don't touch it here — the widget may already
+	 * be finalized when op_destroy runs. */
 	snapshot_destroy(op->snst);
 	free(op);
 }
@@ -811,6 +1035,19 @@ struct output_panel *init_output_panel(struct computer *comp, struct snapshot *s
 	gtk_box_pack_start(GTK_BOX(vbox2), op->paperstrip_drawing_area, TRUE, TRUE, 0);
 	g_signal_connect (op->paperstrip_drawing_area, "draw", G_CALLBACK(paperstrip_draw_event), op);
 	gtk_widget_set_events(op->paperstrip_drawing_area, GDK_EXPOSURE_MASK);
+
+	// Spectrum (live audio spectrogram) under the paperstrip
+	op->spectrum_drawing_area = gtk_drawing_area_new();
+	gtk_widget_set_size_request(op->spectrum_drawing_area, 300, 80);
+	gtk_box_pack_start(GTK_BOX(vbox2), op->spectrum_drawing_area, FALSE, TRUE, 0);
+	g_signal_connect(op->spectrum_drawing_area, "draw", G_CALLBACK(spectrum_draw_event), op);
+	gtk_widget_set_events(op->spectrum_drawing_area, GDK_EXPOSURE_MASK);
+	/* Attach the FFT state to the widget so it is freed automatically when the
+	 * widget is destroyed. The GDestroyNotify handles FFTW plan cleanup. */
+	struct spectrum_state *st = malloc(sizeof(struct spectrum_state));
+	spectrum_state_init(st);
+	g_object_set_data_full(G_OBJECT(op->spectrum_drawing_area), "spectrum-state",
+	                       st, spectrum_state_destroy_notify);
 
 	GtkWidget *hbox3 = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
 	gtk_box_pack_start(GTK_BOX(vbox2), hbox3, FALSE, TRUE, 0);
@@ -865,6 +1102,13 @@ struct output_panel *init_output_panel(struct computer *comp, struct snapshot *s
 	g_signal_connect (op->debug_drawing_area, "draw", G_CALLBACK(debug_draw_event), op);
 	gtk_widget_set_events(op->debug_drawing_area, GDK_EXPOSURE_MASK);
 #endif
+
+	/* Refresh the spectrogram at ~30 fps. Low priority so it never
+	 * competes with the DSP thread or the main UI redraw. */
+	if(op->computer)
+		op->spectrum_timeout = g_timeout_add_full(G_PRIORITY_LOW, 33, (GSourceFunc)spectrum_tick, op, NULL);
+	else
+		op->spectrum_timeout = 0;
 
 	return op;
 }

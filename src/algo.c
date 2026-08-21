@@ -85,9 +85,9 @@ void setup_buffers(struct processing_buffers *b)
 	b->plan_f = fftwf_plan_dft_r2c_1d(b->sample_rate, b->slice_wf, b->slice_fft, FFTW_ESTIMATE);
 	b->plan_g = fftwf_plan_dft_c2r_1d(b->sample_rate, b->slice_fft, b->slice_wf, FFTW_ESTIMATE);
 	b->hpf = malloc(sizeof(struct filter));
-	make_hp(b->hpf,(double)FILTER_CUTOFF/b->sample_rate);
+	make_hp(b->hpf,(double)filter_cutoff/b->sample_rate);
 	b->lpf = malloc(sizeof(struct filter));
-	make_lp(b->lpf,(double)FILTER_CUTOFF/b->sample_rate);
+	make_lp(b->lpf,(double)filter_cutoff/b->sample_rate);
 	b->events = malloc(EVENTS_MAX * sizeof(uint64_t));
 	b->ready = 0;
 #ifdef DEBUG
@@ -157,6 +157,12 @@ struct processing_buffers *pb_clone(struct processing_buffers *p)
 	new->toc = p->toc;
 	new->ready = p->ready;
 	new->timestamp = p->timestamp;
+	new->unlock = p->unlock;
+	new->impulse = p->impulse;
+	new->drop = p->drop;
+	new->unlock2 = p->unlock2;
+	new->impulse2 = p->impulse2;
+	new->drop2 = p->drop2;
 	return new;
 }
 
@@ -734,7 +740,7 @@ static void locate_events(struct processing_buffers *p)
 	int i,j;
 	for(i=0, j=0; i < 2*count; i++) {
 		if(events[i] < 0 ||
-				events[i] + p->timestamp < p->sample_count ||
+				events[i] + p->timestamp < (uint64_t)p->sample_count ||
 				events[i] + p->timestamp - p->sample_count < p->events_from)
 			continue;
 		p->events[j++] = events[i] + p->timestamp - p->sample_count;
@@ -767,6 +773,8 @@ static void compute_amplitude(struct processing_buffers *p, double la)
 
 	p->amp = -1;
 	p->tic_pulse = p->toc_pulse = -1;
+	p->unlock = p->impulse = p->drop = -1;
+	p->unlock2 = p->impulse2 = p->drop2 = -1;
 	while(threshold < .2 * glob_max) {
 		debug("amp threshold = %f%% glob max\n", threshold * 100 / glob_max);
 		double tic_pulse = -1;
@@ -803,6 +811,68 @@ static void compute_amplitude(struct processing_buffers *p, double la)
 			p->be = p->period/2 - fabs(p->toc - p->tic + p->tic_pulse - p->toc_pulse);
 			debug("amp: be = %.1f\n",fabs(p->be)*1000/p->sample_rate);
 			debug("amp = %f\n", la * p->amp);
+
+			/* Three-phase decomposition: scan the pulse window for 3 local
+			 * maxima. The pulse window for the tic is centered at p->tic and
+			 * spans ~period/8; each phase can be a sub-peak of the smooth
+			 * waveform. Min separation is sample_rate/2000 (~0.5 ms). */
+			int min_sep = p->sample_rate / 2000;
+			if(min_sep < 2) min_sep = 2;
+			double phase_th = 0.5 * threshold;
+			for(k = 0; k < 2; k++) {
+				int center = (k ? p->tic : p->toc);
+				int start = floor(fmod(center - p->period/16, p->period));
+				if(start < 0) start += wf_size;
+				int end = floor(fmod(center + p->period/16, p->period));
+				if(end < start) end += wf_size;
+				if(end > wf_size) end = wf_size;
+				if(start < 0) start = 0;
+				int peaks[3] = {-1,-1,-1};
+				int peaks_found = 0;
+				int last_peak = -min_sep * 4;
+				int ii;
+				for(ii = start; ii < end && peaks_found < 3; ii++) {
+					int idx = ii % wf_size;
+					double v = smooth_wf[idx];
+					if(v < phase_th) continue;
+					/* Local max? compare with neighbors (wrap-safe in window) */
+					int prev = (idx == 0 ? wf_size - 1 : idx - 1);
+					int next = (idx + 1) % wf_size;
+					if(v >= smooth_wf[prev] && v >= smooth_wf[next]) {
+						if(ii - last_peak < min_sep) {
+							/* merge: replace last if larger */
+							if(peaks_found > 0 && v > smooth_wf[peaks[peaks_found-1]])
+								peaks[peaks_found-1] = idx;
+						} else {
+							peaks[peaks_found++] = idx;
+							last_peak = ii;
+						}
+					}
+				}
+				if(peaks_found == 3) {
+					if(k) {
+						p->unlock = peaks[0];
+						p->impulse = peaks[1];
+						p->drop = peaks[2];
+						debug("tic 3-phase @ %d %d %d (%.2f/%.2f/%.2f ms)\n",
+						      peaks[0], peaks[1], peaks[2],
+						      1000.0*peaks[0]/p->sample_rate,
+						      1000.0*peaks[1]/p->sample_rate,
+						      1000.0*peaks[2]/p->sample_rate);
+					} else {
+						p->unlock2 = peaks[0];
+						p->impulse2 = peaks[1];
+						p->drop2 = peaks[2];
+						debug("toc 3-phase @ %d %d %d (%.2f/%.2f/%.2f ms)\n",
+						      peaks[0], peaks[1], peaks[2],
+						      1000.0*peaks[0]/p->sample_rate,
+						      1000.0*peaks[1]/p->sample_rate,
+						      1000.0*peaks[2]/p->sample_rate);
+					}
+				} else {
+					debug("3-phase: found %d peaks (need 3), fallback to single-pulse\n", peaks_found);
+				}
+			}
 			break;
 		} else
 			debug("amp rejected\n");

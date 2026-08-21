@@ -23,7 +23,24 @@
 float pa_buffers[PA_BUFF_SIZE];
 int write_pointer = 0;
 uint64_t timestamp = 0;
-pthread_mutex_t audio_mutex;
+pthread_mutex_t audio_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+/* Input gain multiplier applied in the PA callback before storing into
+ * pa_buffers. Default 1.0 (no amplification). Update via set_audio_gain(). */
+static double audio_gain = 1.0;
+
+/* Bandpass cutoff frequency in Hz used by the DSP filters. Default 3000.
+ * Read by algo.c:setup_buffers when constructing the biquad coefficients. */
+int filter_cutoff = DEFAULT_FILTER_CUTOFF;
+
+void set_audio_gain(double g)
+{
+	if(g < 1.0) g = 1.0;
+	if(g > 100.0) g = 100.0;
+	pthread_mutex_lock(&audio_mutex);
+	audio_gain = g;
+	pthread_mutex_unlock(&audio_mutex);
+}
 
 /* Data for PA callback to use */
 static struct callback_info {
@@ -46,6 +63,13 @@ static int paudio_callback(const void *input_buffer,
 	const struct callback_info *info = data;
 	unsigned wp = write_pointer;
 
+	/* Snapshot the current gain once per callback. Held under the mutex to
+	 * avoid tearing a double; the cost is negligible vs the rest of the
+	 * callback. */
+	pthread_mutex_lock(&audio_mutex);
+	float g = (float)audio_gain;
+	pthread_mutex_unlock(&audio_mutex);
+
 	if (info->light) {
 		static bool even = true;
 		/* Copy every other sample.  It would be much more efficient to
@@ -54,12 +78,12 @@ static int paudio_callback(const void *input_buffer,
 		 * decimation without a low-pass filter causes.  */
 		if(info->channels == 1) {
 			for(i = even ? 0 : 1; i < frame_count; i += 2) {
-				pa_buffers[wp++] = input_samples[i];
+				pa_buffers[wp++] = input_samples[i] * g;
 				if (wp >= PA_BUFF_SIZE) wp -= PA_BUFF_SIZE;
 			}
 		} else {
 			for(i = even ? 0 : 2; i < frame_count*2; i += 4) {
-				pa_buffers[wp++] = input_samples[i] + input_samples[i+1];
+				pa_buffers[wp++] = (input_samples[i] + input_samples[i+1]) * g;
 				if (wp >= PA_BUFF_SIZE) wp -= PA_BUFF_SIZE;
 			}
 		}
@@ -69,15 +93,23 @@ static int paudio_callback(const void *input_buffer,
 	} else {
 		const unsigned len = MIN(frame_count, PA_BUFF_SIZE - wp);
 		if(info->channels == 1) {
-			memcpy(pa_buffers + wp, input_samples, len * sizeof(*pa_buffers));
-			if(len < frame_count)
-				memcpy(pa_buffers, input_samples + len, (frame_count - len) * sizeof(*pa_buffers));
+			if(g == 1.0f) {
+				memcpy(pa_buffers + wp, input_samples, len * sizeof(*pa_buffers));
+				if(len < frame_count)
+					memcpy(pa_buffers, input_samples + len, (frame_count - len) * sizeof(*pa_buffers));
+			} else {
+				for(i = 0; i < len; i++)
+					pa_buffers[wp + i] = input_samples[i] * g;
+				if(len < frame_count)
+					for(i = len; i < frame_count; i++)
+						pa_buffers[i - len] = input_samples[i] * g;
+			}
 		} else {
 			for(i = 0; i < len; i++)
-				pa_buffers[wp + i] = input_samples[2u*i] + input_samples[2u*i + 1u];
+				pa_buffers[wp + i] = (input_samples[2u*i] + input_samples[2u*i + 1u]) * g;
 			if(len < frame_count)
 				for(i = len; i < frame_count; i++)
-					pa_buffers[i - len] = input_samples[2u*i] + input_samples[2u*i + 1u];
+					pa_buffers[i - len] = (input_samples[2u*i] + input_samples[2u*i + 1u]) * g;
 		}
 		wp = (wp + frame_count) % PA_BUFF_SIZE;
 	}
@@ -88,14 +120,56 @@ static int paudio_callback(const void *input_buffer,
 	return 0;
 }
 
-int start_portaudio(int *nominal_sample_rate, double *real_sample_rate)
+/* Enumerate all input-capable devices without probing format. Probing via
+ * Pa_IsFormatSupported can block on PulseAudio for ~30s per device, making
+ * the app take minutes to open. Listing everything and relying on Fix A
+ * (fallback to system default) when a chosen device fails to open keeps the
+ * app responsive while still exposing every available input. */
+int get_input_device_count(void)
+{
+	int i, n = Pa_GetDeviceCount();
+	if(n < 0) return 0;
+	int count = 0;
+	for(i = 0; i < n; i++) {
+		const PaDeviceInfo *di = Pa_GetDeviceInfo(i);
+		if(!di) continue;
+		if(di->maxInputChannels > 0) count++;
+	}
+	return count;
+}
+
+const char *get_input_device_name(int index)
+{
+	if(index < 0) return NULL;
+	int i, n = Pa_GetDeviceCount();
+	int count = 0;
+	for(i = 0; i < n; i++) {
+		const PaDeviceInfo *di = Pa_GetDeviceInfo(i);
+		if(!di) continue;
+		if(di->maxInputChannels <= 0) continue;
+		if(count == index) return di->name;
+		count++;
+	}
+	return NULL;
+}
+
+int find_input_device_by_name(const char *name)
+{
+	if(!name || !*name) return paNoDevice;
+	int i, n = Pa_GetDeviceCount();
+	for(i = 0; i < n; i++) {
+		const PaDeviceInfo *di = Pa_GetDeviceInfo(i);
+		if(!di) continue;
+		if(di->maxInputChannels <= 0) continue;
+		if(di->name && !strcmp(di->name, name))
+			return i;
+	}
+	return paNoDevice;
+}
+
+int start_portaudio(int *nominal_sample_rate, double *real_sample_rate, const char *preferred)
 {
 	PaStream *stream;
-
-	if(pthread_mutex_init(&audio_mutex,NULL)) {
-		error("Failed to setup audio mutex");
-		return 1;
-	}
 
 	PaError err = Pa_Initialize();
 	if(err!=paNoError)
@@ -109,30 +183,77 @@ int start_portaudio(int *nominal_sample_rate, double *real_sample_rate)
 	}
 #endif
 
-	PaDeviceIndex default_input = Pa_GetDefaultInputDevice();
-	if(default_input == paNoDevice) {
-		error("No default audio input device found");
+	/* Choose input device: preferred (by name) if provided, else system default */
+	PaDeviceIndex chosen = Pa_GetDefaultInputDevice();
+	if(preferred && *preferred) {
+		PaDeviceIndex found = find_input_device_by_name(preferred);
+		if(found != paNoDevice) {
+			chosen = found;
+			debug("Using saved input device '%s' (index %d)\n", preferred, found);
+		} else {
+			debug("Saved input device '%s' not found; falling back to default\n", preferred);
+		}
+	}
+	if(chosen == paNoDevice) {
+		error("No audio input device found");
 		return 1;
 	}
-	long channels = Pa_GetDeviceInfo(default_input)->maxInputChannels;
+	long channels = Pa_GetDeviceInfo(chosen)->maxInputChannels;
 	if(channels == 0) {
-		error("Default audio device has no input channels");
+		error("Selected audio device has no input channels");
 		return 1;
 	}
 	if(channels > 2) channels = 2;
 	info.channels = channels;
 	info.light = false;
-	err = Pa_OpenDefaultStream(&stream,channels,0,paFloat32,PA_SAMPLE_RATE,paFramesPerBufferUnspecified,paudio_callback,&info);
-	if(err!=paNoError)
-		goto error;
+
+	PaStreamParameters in_params;
+	memset(&in_params, 0, sizeof(in_params));
+	in_params.device = chosen;
+	in_params.channelCount = channels;
+	in_params.sampleFormat = paFloat32;
+	in_params.suggestedLatency = Pa_GetDeviceInfo(chosen)->defaultLowInputLatency;
+
+	err = Pa_OpenStream(&stream, &in_params, NULL, PA_SAMPLE_RATE, paFramesPerBufferUnspecified, paNoFlag, paudio_callback, &info);
+
+	/* If the preferred device failed (USB unplugged, format rejected by the
+	 * hardware, sample rate not supported natively, etc.), fall back to the
+	 * system default input. This keeps the app usable instead of crashing. */
+	if(err != paNoError) {
+		debug("Failed to open device '%s' (%s); falling back to system default\n",
+		      (preferred && *preferred) ? preferred : "(default)",
+		      Pa_GetErrorText(err));
+		PaDeviceIndex def = Pa_GetDefaultInputDevice();
+		if(def == paNoDevice) {
+			error("No default audio input device found");
+			return 1;
+		}
+		long def_channels = Pa_GetDeviceInfo(def)->maxInputChannels;
+		if(def_channels == 0) {
+			error("Default audio device has no input channels");
+			return 1;
+		}
+		if(def_channels > 2) def_channels = 2;
+		info.channels = def_channels;
+
+		memset(&in_params, 0, sizeof(in_params));
+		in_params.device = def;
+		in_params.channelCount = def_channels;
+		in_params.sampleFormat = paFloat32;
+		in_params.suggestedLatency = Pa_GetDeviceInfo(def)->defaultLowInputLatency;
+
+		err = Pa_OpenStream(&stream, &in_params, NULL, PA_SAMPLE_RATE, paFramesPerBufferUnspecified, paNoFlag, paudio_callback, &info);
+		if(err != paNoError)
+			goto error;
+	}
 
 	err = Pa_StartStream(stream);
 	if(err!=paNoError)
 		goto error;
 
-	const PaStreamInfo *info = Pa_GetStreamInfo(stream);
+	const PaStreamInfo *stream_info = Pa_GetStreamInfo(stream);
 	*nominal_sample_rate = PA_SAMPLE_RATE;
-	*real_sample_rate = info->sampleRate;
+	*real_sample_rate = stream_info->sampleRate;
 #ifdef DEBUG
 end:
 #endif
@@ -242,4 +363,36 @@ void set_audio_light(bool light)
 		timestamp = 0;
 		pthread_mutex_unlock(&audio_mutex);
 	}
+}
+
+/** Copy the most recent `count` audio samples into `out`.
+ *
+ * Returns the number of samples actually copied (may be less than `count` if
+ * the buffer has not yet accumulated that many). Safe to call from any thread;
+ * holds audio_mutex only for the duration of the copy. */
+int get_recent_audio(float *out, int count)
+{
+	if(count <= 0 || !out) return 0;
+	pthread_mutex_lock(&audio_mutex);
+	int wp = write_pointer;
+	/* Number of samples currently available (timestamp counts frames
+	 * written since last reset). For light mode timestamp is in half-rate
+	 * frames, but pa_buffers holds the decimated samples — use wp directly
+	 * capped by PA_BUFF_SIZE. */
+	int available = wp; /* wp == 0 means empty after a reset */
+	if((unsigned)available > PA_BUFF_SIZE) available = PA_BUFF_SIZE;
+	int n = count < available ? count : available;
+	if(n > 0) {
+		int start = wp - n;
+		if(start < 0) start += PA_BUFF_SIZE;
+		int len = PA_BUFF_SIZE - start;
+		if(len >= n) {
+			memcpy(out, pa_buffers + start, n * sizeof(float));
+		} else {
+			memcpy(out, pa_buffers + start, len * sizeof(float));
+			memcpy(out + len, pa_buffers, (n - len) * sizeof(float));
+		}
+	}
+	pthread_mutex_unlock(&audio_mutex);
+	return n;
 }

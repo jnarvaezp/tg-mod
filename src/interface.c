@@ -147,8 +147,8 @@ static void on_shutdown(GApplication *app, void *p)
 	struct main_window *w = g_object_get_data(G_OBJECT(app), "main-window");
 	if(w) {
 		save_config(w);
-		computer_destroy(w->computer);
-		op_destroy(w->active_panel);
+		if(w->computer) computer_destroy(w->computer);
+		if(w->active_panel) op_destroy(w->active_panel);
 		close_config(w);
 		free(w);
 	}
@@ -164,7 +164,24 @@ static guint computer_terminated(struct main_window *w)
 		debug("Closing main window\n");
 		gtk_widget_destroy(w->window);
 	} else {
-		debug("Restarting computer");
+		debug("Restarting computer\n");
+		computer_destroy(w->computer);
+		w->computer = NULL;
+
+		if(w->restart_portaudio) {
+			w->restart_portaudio = 0;
+			debug("Re-opening audio with device: %s\n", w->input_device ? w->input_device : "(default)");
+			terminate_portaudio();
+			double real_sr;
+			if(start_portaudio(&w->nominal_sr, &real_sr, w->input_device)) {
+				g_source_remove(w->kick_timeout);
+				g_source_remove(w->save_timeout);
+				w->zombie = 1;
+				error("Failed to re-open audio input device");
+				gtk_widget_destroy(w->window);
+				return FALSE;
+			}
+		}
 
 		struct computer *c = start_computer(w->nominal_sr, w->bph, w->la, w->cal, w->is_light);
 		if(!c) {
@@ -174,7 +191,6 @@ static guint computer_terminated(struct main_window *w)
 			error("Failed to restart computation thread");
 			gtk_widget_destroy(w->window);
 		} else {
-			computer_destroy(w->computer);
 			w->active_panel->computer = w->computer = c;
 
 			w->computer->callback = computer_callback;
@@ -229,7 +245,7 @@ static void recompute(struct main_window *w)
 	w->computer_timeout = 0;
 	lock_computer(w->computer);
 	if(w->computer->recompute >= 0) {
-		if(w->is_light != w->computer->actv->is_light) {
+		if(w->is_light != w->computer->actv->is_light || w->restart_portaudio) {
 			kill_computer(w);
 		} else {
 			w->computer->bph = w->bph;
@@ -268,6 +284,55 @@ static void handle_light(GtkCheckMenuItem *b, struct main_window *w)
 		w->is_light = button_state;
 		recompute(w);
 	}
+}
+
+static void handle_device_change(GtkComboBox *b, struct main_window *w)
+{
+	if(!w->controls_active) return;
+	gchar *s = gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(b));
+	if(!s) return;
+	// "System default" maps to empty string (PortAudio falls back to OS default
+	// when *preferred == '\0'); this keeps w->input_device always non-NULL so
+	// save_config can serialize it cleanly.
+	gchar *new_device = strcmp(s, "System default") ? g_strdup(s) : g_strdup("");
+	g_free(s);
+
+	// No-op if unchanged (g_strcmp0 treats NULL == "" as different, but we keep
+	// input_device non-NULL after the first change, so the typical path is ""=="")
+	if(g_strcmp0(new_device, w->input_device) == 0) {
+		g_free(new_device);
+		return;
+	}
+
+	g_free(w->input_device);
+	w->input_device = new_device;
+	w->restart_portaudio = 1;
+	recompute(w);
+}
+
+static void handle_gain_change(GtkSpinButton *b, struct main_window *w)
+{
+	if(!w->controls_active) return;
+	double g = gtk_spin_button_get_value(b);
+	if(g < 1.0) g = 1.0;
+	if(g > 100.0) g = 100.0;
+	w->gain = g;
+	set_audio_gain(g);
+}
+
+static void handle_cutoff_change(GtkSpinButton *b, struct main_window *w)
+{
+	if(!w->controls_active) return;
+	int fc = (int)gtk_spin_button_get_value(b);
+	if(fc < 1000) fc = 1000;
+	if(fc > 8000) fc = 8000;
+	if(fc == w->filter_cutoff) return;
+	w->filter_cutoff = fc;
+	filter_cutoff = fc;
+	/* Filter coefficients are baked into the processing_buffers at
+	 * setup_buffers(), so changing the cutoff requires a full computer
+	 * restart (same path as the light-mode switch). */
+	recompute(w);
 }
 
 static void controls_active(struct main_window *w, int active)
@@ -763,6 +828,47 @@ static void init_main_window(struct main_window *w)
 	g_signal_connect(w->cal_spin_button, "output", G_CALLBACK(output_cal), NULL);
 	g_signal_connect(w->cal_spin_button, "input", G_CALLBACK(input_cal), NULL);
 
+	// Audio input device label + combo box
+	label = gtk_label_new("mic");
+	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+
+	w->device_combo_box = gtk_combo_box_text_new();
+	gtk_box_pack_start(GTK_BOX(hbox), w->device_combo_box, FALSE, FALSE, 0);
+	// First entry: "System default" (no preference, falls back to Pa default)
+	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->device_combo_box), "System default");
+	int dev_active = 0;
+	int dev_count = get_input_device_count();
+	int di;
+	for(di = 0; di < dev_count; di++) {
+		const char *dname = get_input_device_name(di);
+		if(!dname) continue;
+		// get_input_device_name() already filters to input-capable devices
+		gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->device_combo_box), dname);
+		if(w->input_device && !strcmp(w->input_device, dname))
+			dev_active = di + 1;
+	}
+	gtk_combo_box_set_active(GTK_COMBO_BOX(w->device_combo_box), dev_active);
+	g_signal_connect(w->device_combo_box, "changed", G_CALLBACK(handle_device_change), w);
+
+	// Gain label + spin button
+	label = gtk_label_new("gain");
+	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+	w->gain_spin_button = gtk_spin_button_new_with_range(1.0, 100.0, 0.5);
+	gtk_spin_button_set_value(GTK_SPIN_BUTTON(w->gain_spin_button), w->gain);
+	gtk_spin_button_set_digits(GTK_SPIN_BUTTON(w->gain_spin_button), 1);
+	gtk_entry_set_width_chars(GTK_ENTRY(w->gain_spin_button), 5);
+	gtk_box_pack_start(GTK_BOX(hbox), w->gain_spin_button, FALSE, FALSE, 0);
+	g_signal_connect(w->gain_spin_button, "value_changed", G_CALLBACK(handle_gain_change), w);
+
+	// Cutoff label + spin button
+	label = gtk_label_new("cutoff");
+	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+	w->cutoff_spin_button = gtk_spin_button_new_with_range(1000, 8000, 100);
+	gtk_spin_button_set_value(GTK_SPIN_BUTTON(w->cutoff_spin_button), w->filter_cutoff);
+	gtk_entry_set_width_chars(GTK_ENTRY(w->cutoff_spin_button), 5);
+	gtk_box_pack_start(GTK_BOX(hbox), w->cutoff_spin_button, FALSE, FALSE, 0);
+	g_signal_connect(w->cutoff_spin_button, "value_changed", G_CALLBACK(handle_cutoff_change), w);
+
 	// Is there a more elegant way?
 	GtkWidget *empty = gtk_label_new("");
 	gtk_box_pack_start(GTK_BOX(hbox), empty, TRUE, FALSE, 0);
@@ -916,11 +1022,7 @@ static void start_interface(GApplication* app, void *p)
 	initialize_palette();
 
 	struct main_window *w = malloc(sizeof(struct main_window));
-
-	if(start_portaudio(&w->nominal_sr, &real_sr)) {
-		g_application_quit(app);
-		return;
-	}
+	memset(w, 0, sizeof(struct main_window));
 
 	w->app = GTK_APPLICATION(app);
 
@@ -931,8 +1033,21 @@ static void start_interface(GApplication* app, void *p)
 	w->la = DEFAULT_LA;
 	w->calibrate = 0;
 	w->is_light = 0;
+	w->input_device = NULL;
+	w->restart_portaudio = 0;
+	w->gain = 1.0;
+	w->filter_cutoff = DEFAULT_FILTER_CUTOFF;
 
 	load_config(w);
+
+	/* Apply loaded config to runtime. */
+	set_audio_gain(w->gain);
+	filter_cutoff = w->filter_cutoff;
+
+	if(start_portaudio(&w->nominal_sr, &real_sr, w->input_device)) {
+		g_application_quit(app);
+		return;
+	}
 
 	if(w->la < MIN_LA || w->la > MAX_LA) w->la = DEFAULT_LA;
 	if(w->bph < MIN_BPH || w->bph > MAX_BPH) w->bph = 0;

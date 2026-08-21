@@ -34,7 +34,7 @@
 
 #define CONFIG_FILE_NAME "tg-timer.ini"
 
-#define FILTER_CUTOFF 3000
+#define DEFAULT_FILTER_CUTOFF 3000
 
 #define CAL_DATA_SIZE 900
 
@@ -89,6 +89,11 @@ struct processing_buffers {
 	int waveform_max_i;
 	int tic,toc;
 	int ready;
+	/* Three-phase decomposition of the tick waveform (samples). -1 if not
+	 * detected. unlock/impulse/drop are the local maxima of the tic pulse;
+	 * unlock2/impulse2/drop2 mirror them for the toc pulse. */
+	int unlock, impulse, drop;
+	int unlock2, impulse2, drop2;
 	uint64_t timestamp, last_tic, last_toc, events_from;
 	uint64_t *events;
 #ifdef DEBUG
@@ -125,12 +130,27 @@ struct processing_data {
 	int is_light;
 };
 
-int start_portaudio(int *nominal_sample_rate, double *real_sample_rate);
+int start_portaudio(int *nominal_sample_rate, double *real_sample_rate, const char *preferred);
 int terminate_portaudio();
 uint64_t get_timestamp(int light);
 int analyze_pa_data(struct processing_data *pd, int bph, double la, uint64_t events_from);
 int analyze_pa_data_cal(struct processing_data *pd, struct calibration_data *cd);
 void set_audio_light(bool light);
+
+/* Copy the most recent audio samples for live visualization (oscilloscope).
+ * Returns the number of samples actually copied. */
+int get_recent_audio(float *out, int count);
+
+/* Set the input gain multiplier applied in the PA callback (1.0 .. 100.0). */
+void set_audio_gain(double g);
+
+/* Bandpass cutoff frequency in Hz used by algo.c:setup_buffers. */
+extern int filter_cutoff;
+
+/* Input device enumeration / selection (must be called after Pa_Initialize, i.e. after start_portaudio) */
+int get_input_device_count(void);
+const char *get_input_device_name(int index);
+int find_input_device_by_name(const char *name);
 
 /* computer.c */
 struct snapshot {
@@ -204,7 +224,10 @@ struct output_panel {
 	GtkWidget *toc_drawing_area;
 	GtkWidget *period_drawing_area;
 	GtkWidget *paperstrip_drawing_area;
+	GtkWidget *spectrum_drawing_area;
 	GtkWidget *clear_button;
+	guint spectrum_timeout;
+	guint scope_timeout;
 #ifdef DEBUG
 	GtkWidget *debug_drawing_area;
 #endif
@@ -227,6 +250,9 @@ struct main_window {
 	GtkWidget *bph_combo_box;
 	GtkWidget *la_spin_button;
 	GtkWidget *cal_spin_button;
+	GtkWidget *device_combo_box;
+	GtkWidget *gain_spin_button;
+	GtkWidget *cutoff_spin_button;
 	GtkWidget *snapshot_button;
 	GtkWidget *snapshot_name;
 	GtkWidget *snapshot_name_entry;
@@ -248,6 +274,10 @@ struct main_window {
 	int bph;
 	double la; // deg
 	int cal; // 0.1 s/d
+	gchar *input_device; // preferred input device name (NULL = system default)
+	int restart_portaudio; // flag: re-open PortAudio when restarting computer
+	double gain; // audio input gain multiplier (1.0 = no amplification)
+	int filter_cutoff; // bandpass cutoff frequency in Hz (default 3000)
 	int nominal_sr;
 
 	GKeyFile *config_file;
@@ -268,11 +298,19 @@ void print_debug(char *format,...);
 void error(char *format,...);
 
 /* config.c */
+/* cfg_string is used by CONFIG_FIELDS to declare string-typed config entries.
+ * Defined here (not in config.c) because the macro expands into struct conf_data
+ * below, which is included by every translation unit. */
+typedef gchar *cfg_string;
+
 #define CONFIG_FIELDS(OP) \
 	OP(bph, bph, int) \
 	OP(lift_angle, la, double) \
 	OP(calibration, cal, int) \
-	OP(light_algorithm, is_light, int)
+	OP(light_algorithm, is_light, int) \
+	OP(input_device, input_device, cfg_string) \
+	OP(gain, gain, double) \
+	OP(filter_cutoff, filter_cutoff, int)
 
 struct conf_data {
 #define DEF(NAME,PLACE,TYPE) TYPE PLACE;

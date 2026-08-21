@@ -45,6 +45,17 @@ g_key_file_save_to_file (GKeyFile     *key_file,
 #define g_key_file_get_int g_key_file_get_integer
 #define g_key_file_set_int g_key_file_set_integer // the devil may take glib
 
+/* Support for cfg_string config fields: g_key_file already provides these.
+ * We wrap the setter so NULL values (e.g. "use system default") are written
+ * as an empty string instead of triggering g_key_file_set_string's assertion. */
+#define g_key_file_get_cfg_string g_key_file_get_string
+static inline void g_key_file_set_cfg_string_safe(GKeyFile *kf, const gchar *group,
+                                                  const gchar *key, const gchar *value)
+{
+	g_key_file_set_string(kf, group, key, value ? value : "");
+}
+#define g_key_file_set_cfg_string g_key_file_set_cfg_string_safe
+
 void load_config(struct main_window *w)
 {
 	w->config_file = g_key_file_new();
@@ -118,5 +129,9 @@ void close_config(struct main_window *w)
 {
 	g_key_file_free(w->config_file);
 	g_free(w->config_file_name);
+	/* conf_data->input_device aliases w->input_device (same g_strdup'd
+	 * pointer set in load_config's LOAD macro). Don't free it here to avoid
+	 * double-free — w->input_device is freed below. */
 	free(w->conf_data);
+	g_free(w->input_device);
 }
