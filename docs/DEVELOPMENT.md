@@ -48,5 +48,7 @@ git branch -d feature/<nombre>
 ## Estados del repo
 
 - La rama por defecto del proyecto es `master` (no existe `main`).
-- `origin` apunta al repositorio público de tg
-  (`git@github.com:vacaboja/tg.git`).
+- `origin` apunta al fork propio
+  (`git@github.com:jnarvaezp/tg-mod.git`) — ahí se hace el push.
+- `upstream` apunta al repositorio público de tg
+  (`git@github.com:vacaboja/tg.git`) — de ahí se hace el pull/fetch.
