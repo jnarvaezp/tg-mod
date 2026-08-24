@@ -290,6 +290,7 @@ int terminate_portaudio()
 		error("Error closing audio: %s", Pa_GetErrorText(err));
 		return 1;
 	}
+	pa_stream = NULL;
 	return 0;
 }
 
@@ -478,6 +479,7 @@ int load_audio_file(const char *path)
 	fs.length = wav_get_length(&fs.rd);
 	fs.path = strdup(path);
 	fs.active = 1;
+	fs.start_clock = g_get_monotonic_time();
 
 	pthread_mutex_lock(&audio_mutex);
 	if(file_src.active) {
