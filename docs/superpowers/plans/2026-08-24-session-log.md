@@ -507,35 +507,30 @@ git commit -m "Add Save session log menu item"
 
 **Files:** ninguno (verificación)
 
-- [ ] **Step 1: Verificar con el binario debug (live, 12 s) y revisar los archivos**
+- [ ] **Step 1: Regresión del camino `--analyze`**
 
 ```bash
-rm -rf ~/tg-logs
-timeout 12 ./tg-timer-dbg >/dev/null 2>&1 || true
-ls -la ~/tg-logs/
+./tg-timer-dbg analyze /tmp/opencode/tick.wav
 ```
 
-Expected: aparecen `tg-session-*.{json,csv,raw}`.
+Expected: `signal 1`, `bph 18000` (el `debug()` incondicional no rompe el análisis).
+
+- [ ] **Step 2: Prueba de clic real (usuario)**
+
+El ítem de menú solo escribe al hacer clic. Pedir al usuario:
+
+1. Abrir la app (cualquier binario).
+2. Menú Command → *Save session log*.
+3. Comprobar:
 
 ```bash
+ls -la ~/tg-logs/
 head -c 600 ~/tg-logs/*.json
-echo "---CSV---"
 head -5 ~/tg-logs/*.csv
-echo "---RAW---"
 head -5 ~/tg-logs/*.raw
 ```
 
-Expected: JSON con objetos por ciclo (algunos con `"signal":0` si la señal no engancha, otros con valores si engancha); CSV con header + filas; RAW con líneas `[<wall_ms>] ...`.
-
-- [ ] **Step 2: Verificar release también genera el log**
-
-```bash
-rm -rf ~/tg-logs
-timeout 12 ./tg-timer >/dev/null 2>&1 || true
-ls ~/tg-logs/ | head
-```
-
-Expected: el binario release también escribe los 3 archivos (el `debug()` ahora está activo en todos los builds).
+Expected: `tg-session-<timestamp>.{json,csv,raw}` con objetos por ciclo (incl. ciclos con `"signal":0` si la detección no engancha) y líneas raw `[<wall_ms>] ...`.
 
 - [ ] **Step 3: Commit (si hay ajustes) o pasar directamente**
 
