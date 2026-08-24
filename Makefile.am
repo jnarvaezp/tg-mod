@@ -77,5 +77,6 @@ valgrind: tg-timer-vlg
 .PHONY: valgrind
 
 check_PROGRAMS = tests/test_wav
-tests_test_wav_SOURCES = tests/test_wav.c
+tests_test_wav_SOURCES = tests/test_wav.c src/wav.c
+tests_test_wav_CFLAGS = $(AM_CFLAGS) -I$(srcdir)/src
 TESTS = tests/test_wav
