@@ -113,6 +113,14 @@ int main(void)
 			fclose(f);
 		}
 		remove(json_path);
+		/* Limpiar también csv/raw del wrap (50 001 filas) */
+		{
+			char wrap_path[512];
+			snprintf(wrap_path, sizeof(wrap_path), "%s/%s.csv", dir, "test_wrap");
+			remove(wrap_path);
+			snprintf(wrap_path, sizeof(wrap_path), "%s/%s.raw", dir, "test_wrap");
+			remove(wrap_path);
+		}
 	}
 
 	CHECK(session_save("nonexistent_dir_xyz", "x") == 3, "save to bad dir returns 3");
