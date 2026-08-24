@@ -157,6 +157,7 @@ uint64_t get_audio_file_position(void);   /* frames bombeados */
 unsigned get_audio_file_rate(void);
 void audio_file_restart(void);
 void audio_file_set_fast(int fast);       /* headless: bombea todo de una vez */
+int audio_file_peek_rate(const char *path, unsigned *rate);  /* 0 = ok */
 
 /* Mic stream control (sin reiniciar Pa): */
 int pause_portaudio(void);
@@ -309,6 +310,17 @@ struct main_window {
 	double gain; // audio input gain multiplier (1.0 = no amplification)
 	int filter_cutoff; // bandpass cutoff frequency in Hz (default 3000)
 	int nominal_sr;
+
+	GtkWidget *source_label;
+	GtkWidget *record_item;
+	GtkWidget *stop_record_item;
+	GtkWidget *close_rec_item;
+	GtkWidget *light_checkbox;
+	gchar *audio_file_name;      /* nombre del archivo en modo archivo (label) */
+	gchar *pending_audio_file;   /* ruta a cargar tras reiniciar computer */
+	int close_audio;             /* cerrar archivo al reiniciar computer */
+	int restart_computer;        /* forzar reinicio de computer sin tocar Pa */
+	int audio_file_mode;         /* 1 = analizando un archivo */
 
 	GKeyFile *config_file;
 	gchar *config_file_name;

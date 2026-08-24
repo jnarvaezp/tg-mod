@@ -150,6 +150,8 @@ static void on_shutdown(GApplication *app, void *p)
 		if(w->computer) computer_destroy(w->computer);
 		if(w->active_panel) op_destroy(w->active_panel);
 		close_config(w);
+		g_free(w->audio_file_name);
+		g_free(w->pending_audio_file);
 		free(w);
 	}
 	terminate_portaudio();
@@ -183,6 +185,21 @@ static guint computer_terminated(struct main_window *w)
 			}
 		}
 
+		if(w->close_audio) {
+			close_audio_file();
+			w->close_audio = 0;
+			w->audio_file_mode = 0;
+			w->nominal_sr = PA_SAMPLE_RATE;
+			g_free(w->audio_file_name);
+			w->audio_file_name = NULL;
+		}
+
+		unsigned file_rate = 0;
+		if(w->pending_audio_file)
+			audio_file_peek_rate(w->pending_audio_file, &file_rate);
+		if(file_rate)
+			w->nominal_sr = file_rate;
+
 		struct computer *c = start_computer(w->nominal_sr, w->bph, w->la, w->cal, w->is_light);
 		if(!c) {
 			g_source_remove(w->kick_timeout);
@@ -196,6 +213,18 @@ static guint computer_terminated(struct main_window *w)
 			w->computer->callback = computer_callback;
 			w->computer->callback_data = w;
 
+			if(w->pending_audio_file) {
+				if(load_audio_file(w->pending_audio_file)) {
+					error("Failed to open recording: %s", w->pending_audio_file);
+					w->audio_file_mode = 0;
+					w->nominal_sr = PA_SAMPLE_RATE;
+					resume_portaudio();
+				} else {
+					w->audio_file_mode = 1;
+				}
+				g_free(w->pending_audio_file);
+				w->pending_audio_file = NULL;
+			}
 			recompute(w);
 		}
 	}
@@ -245,7 +274,8 @@ static void recompute(struct main_window *w)
 	w->computer_timeout = 0;
 	lock_computer(w->computer);
 	if(w->computer->recompute >= 0) {
-		if(w->is_light != w->computer->actv->is_light || w->restart_portaudio) {
+		if(w->is_light != w->computer->actv->is_light || w->restart_portaudio || w->restart_computer) {
+			w->restart_computer = 0;
 			kill_computer(w);
 		} else {
 			w->computer->bph = w->bph;
@@ -333,6 +363,112 @@ static void handle_cutoff_change(GtkSpinButton *b, struct main_window *w)
 	 * setup_buffers(), so changing the cutoff requires a full computer
 	 * restart (same path as the light-mode switch). */
 	recompute(w);
+}
+
+static void update_audio_mode_ui(struct main_window *w);
+
+static void handle_open_recording(GtkMenuItem *m, struct main_window *w)
+{
+	UNUSED(m);
+	if(get_recording()) return;
+	GtkWidget *dialog = gtk_file_chooser_dialog_new("Open recording",
+			GTK_WINDOW(w->window), GTK_FILE_CHOOSER_ACTION_OPEN,
+			"Cancel", GTK_RESPONSE_CANCEL, "Open", GTK_RESPONSE_ACCEPT, NULL);
+	GtkFileFilter *f = gtk_file_filter_new();
+	gtk_file_filter_set_name(f, ".wav");
+	gtk_file_filter_add_pattern(f, "*.wav");
+	gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dialog), f);
+	gtk_file_chooser_set_filter(GTK_FILE_CHOOSER(dialog), f);
+
+	if(GTK_RESPONSE_ACCEPT == gtk_dialog_run(GTK_DIALOG(dialog))) {
+		GFile *gf = gtk_file_chooser_get_file(GTK_FILE_CHOOSER(dialog));
+		char *filename = g_file_get_path(gf);
+		g_object_unref(gf);
+		if(filename) {
+			if(w->audio_file_mode) close_audio_file();
+			g_free(w->audio_file_name);
+			w->audio_file_name = g_path_get_basename(filename);
+			w->pending_audio_file = g_strdup(filename);
+			w->is_light = 0;
+			w->restart_computer = 1;
+			pause_portaudio();
+			recompute(w);
+			g_free(filename);
+		}
+	}
+	gtk_widget_destroy(dialog);
+}
+
+static void handle_close_recording(GtkMenuItem *m, struct main_window *w)
+{
+	UNUSED(m);
+	if(get_recording()) return;
+	w->close_audio = 1;
+	w->restart_computer = 1;
+	resume_portaudio();
+	recompute(w);
+}
+
+static void handle_start_recording(GtkMenuItem *m, struct main_window *w)
+{
+	UNUSED(m);
+	if(w->audio_file_mode || get_recording()) return;
+	GtkWidget *dialog = gtk_file_chooser_dialog_new("Record to file",
+			GTK_WINDOW(w->window), GTK_FILE_CHOOSER_ACTION_SAVE,
+			"Cancel", GTK_RESPONSE_CANCEL, "Save", GTK_RESPONSE_ACCEPT, NULL);
+	gtk_file_chooser_set_current_name(GTK_FILE_CHOOSER(dialog), "recording.wav");
+	GtkFileFilter *f = gtk_file_filter_new();
+	gtk_file_filter_set_name(f, ".wav");
+	gtk_file_filter_add_pattern(f, "*.wav");
+	gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(dialog), f);
+
+	if(GTK_RESPONSE_ACCEPT == gtk_dialog_run(GTK_DIALOG(dialog))) {
+		GFile *gf = gtk_file_chooser_get_file(GTK_FILE_CHOOSER(dialog));
+		char *filename = g_file_get_path(gf);
+		g_object_unref(gf);
+		if(filename) {
+			if(start_recording(filename))
+				error("Failed to start recording to %s", filename);
+			else
+				update_audio_mode_ui(w);
+			g_free(filename);
+		}
+	}
+	gtk_widget_destroy(dialog);
+}
+
+static void handle_stop_recording(GtkMenuItem *m, struct main_window *w)
+{
+	UNUSED(m);
+	stop_recording();
+	update_audio_mode_ui(w);
+}
+
+static void update_audio_mode_ui(struct main_window *w)
+{
+	int file_mode = w->audio_file_mode;
+	int recording = get_recording();
+
+	gtk_widget_set_sensitive(w->device_combo_box, !file_mode);
+	gtk_widget_set_sensitive(w->gain_spin_button, !file_mode);
+	gtk_widget_set_sensitive(w->cal_button, !file_mode);
+	gtk_widget_set_sensitive(w->light_checkbox, !file_mode);
+
+	const char *txt;
+	if(recording) {
+		txt = "recording...";
+	} else if(file_mode && w->audio_file_name) {
+		txt = w->audio_file_name;
+	} else if(file_mode) {
+		txt = "recording";
+	} else {
+		txt = "mic";
+	}
+	gtk_label_set_text(GTK_LABEL(w->source_label), txt);
+
+	gtk_widget_set_sensitive(w->record_item, !file_mode && !recording);
+	gtk_widget_set_sensitive(w->stop_record_item, recording);
+	gtk_widget_set_sensitive(w->close_rec_item, file_mode && !recording);
 }
 
 static void controls_active(struct main_window *w, int active)
@@ -869,6 +1005,11 @@ static void init_main_window(struct main_window *w)
 	gtk_box_pack_start(GTK_BOX(hbox), w->cutoff_spin_button, FALSE, FALSE, 0);
 	g_signal_connect(w->cutoff_spin_button, "value_changed", G_CALLBACK(handle_cutoff_change), w);
 
+	// Source indicator
+	label = gtk_label_new("mic");
+	w->source_label = label;
+	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+
 	// Is there a more elegant way?
 	GtkWidget *empty = gtk_label_new("");
 	gtk_box_pack_start(GTK_BOX(hbox), empty, TRUE, FALSE, 0);
@@ -922,13 +1063,35 @@ static void init_main_window(struct main_window *w)
 	g_signal_connect(w->save_all_item, "activate", G_CALLBACK(save_all), w);
 	gtk_widget_set_sensitive(w->save_all_item, FALSE);
 
+	// ... Open recording
+	GtkWidget *open_rec_item = gtk_menu_item_new_with_label("Open recording...");
+	gtk_menu_shell_append(GTK_MENU_SHELL(command_menu), open_rec_item);
+	g_signal_connect(open_rec_item, "activate", G_CALLBACK(handle_open_recording), w);
+
+	// ... Close recording
+	w->close_rec_item = gtk_menu_item_new_with_label("Close recording");
+	gtk_menu_shell_append(GTK_MENU_SHELL(command_menu), w->close_rec_item);
+	g_signal_connect(w->close_rec_item, "activate", G_CALLBACK(handle_close_recording), w);
+	gtk_widget_set_sensitive(w->close_rec_item, FALSE);
+
 	gtk_menu_shell_append(GTK_MENU_SHELL(command_menu), gtk_separator_menu_item_new());
 
+	// ... Start recording
+	w->record_item = gtk_menu_item_new_with_label("Record to file...");
+	gtk_menu_shell_append(GTK_MENU_SHELL(command_menu), w->record_item);
+	g_signal_connect(w->record_item, "activate", G_CALLBACK(handle_start_recording), w);
+
+	// ... Stop recording
+	w->stop_record_item = gtk_menu_item_new_with_label("Stop recording");
+	gtk_menu_shell_append(GTK_MENU_SHELL(command_menu), w->stop_record_item);
+	g_signal_connect(w->stop_record_item, "activate", G_CALLBACK(handle_stop_recording), w);
+	gtk_widget_set_sensitive(w->stop_record_item, FALSE);
+
 	// ... Light checkbox
-	GtkWidget *light_checkbox = gtk_check_menu_item_new_with_label("Light algorithm");
-	gtk_menu_shell_append(GTK_MENU_SHELL(command_menu), light_checkbox);
-	g_signal_connect(light_checkbox, "toggled", G_CALLBACK(handle_light), w);
-	gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(light_checkbox), w->is_light);
+	w->light_checkbox = gtk_check_menu_item_new_with_label("Light algorithm");
+	gtk_menu_shell_append(GTK_MENU_SHELL(command_menu), w->light_checkbox);
+	g_signal_connect(w->light_checkbox, "toggled", G_CALLBACK(handle_light), w);
+	gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(w->light_checkbox), w->is_light);
 
 	// ... Calibrate checkbox
 	w->cal_button = gtk_check_menu_item_new_with_label("Calibrate");
@@ -1072,6 +1235,8 @@ static void start_interface(GApplication* app, void *p)
 	w->active_panel = init_output_panel(w->computer, w->active_snapshot, 0);
 
 	init_main_window(w);
+
+	update_audio_mode_ui(w);
 
 	w->kick_timeout = g_timeout_add_full(G_PRIORITY_LOW,100,(GSourceFunc)kick_computer,w,NULL);
 	w->save_timeout = g_timeout_add_full(G_PRIORITY_LOW,10000,(GSourceFunc)save_on_change_timer,w,NULL);

@@ -580,6 +580,15 @@ void audio_file_set_fast(int fast)
 	pthread_mutex_unlock(&audio_mutex);
 }
 
+int audio_file_peek_rate(const char *path, unsigned *rate)
+{
+	struct wav_reader rd;
+	if(wav_open_read(path, &rd)) return -1;
+	*rate = rd.rate;
+	wav_reader_close(&rd);
+	return 0;
+}
+
 static struct recorder {
 	int active;
 	char *path;
