@@ -102,3 +102,146 @@ int wav_close(struct wav_writer *w)
 	w->ok = 0;
 	return rc ? -1 : 0;
 }
+
+static int read_le16(FILE *f, unsigned *v)
+{
+	unsigned char b[2];
+	if(fread(b, 1, 2, f) != 2) return -1;
+	if(v) *v = b[0] | (b[1] << 8);
+	return 0;
+}
+
+static int read_le32(FILE *f, uint32_t *v)
+{
+	unsigned char b[4];
+	if(fread(b, 1, 4, f) != 4) return -1;
+	if(v) *v = b[0] | (b[1] << 8) | ((uint32_t)b[2] << 16) | ((uint32_t)b[3] << 24);
+	return 0;
+}
+
+int wav_open_read(const char *path, struct wav_reader *r)
+{
+	memset(r, 0, sizeof(*r));
+	r->f = fopen(path, "rb");
+	if(!r->f) return -1;
+
+	char tag[4];
+	if(fread(tag, 1, 4, r->f) != 4 || memcmp(tag, "RIFF", 4)) goto error;
+	uint32_t riff_size;
+	if(read_le32(r->f, &riff_size)) goto error;
+	if(fread(tag, 1, 4, r->f) != 4 || memcmp(tag, "WAVE", 4)) goto error;
+
+	/* Pass 1: find and parse the fmt chunk. */
+	unsigned fmt = 0, channels = 0, bits = 0;
+	uint32_t rate = 0;
+	int have_fmt = 0;
+	while(fread(tag, 1, 4, r->f) == 4) {
+		uint32_t csize;
+		if(read_le32(r->f, &csize)) goto error;
+		if(!memcmp(tag, "fmt ", 4) && csize >= 16 && !have_fmt) {
+			if(read_le16(r->f, &fmt) || read_le16(r->f, &channels) ||
+			   read_le32(r->f, &rate) || read_le32(r->f, NULL) ||
+			   read_le16(r->f, NULL) || read_le16(r->f, &bits))
+				goto error;
+			have_fmt = 1;
+			break;
+		}
+		fseek(r->f, (long)csize, SEEK_CUR);
+	}
+	if(!have_fmt || (fmt != 1 && fmt != 3) || channels == 0 || rate == 0) goto error;
+
+	/* Pass 2: find the data chunk. */
+	fseek(r->f, 12, SEEK_SET);
+	uint64_t data_start = 0, data_bytes = 0;
+	while(fread(tag, 1, 4, r->f) == 4) {
+		uint32_t csize;
+		if(read_le32(r->f, &csize)) goto error;
+		if(!memcmp(tag, "data", 4)) {
+			data_start = (uint64_t)ftell(r->f);
+			data_bytes = csize;
+			break;
+		}
+		fseek(r->f, (long)csize, SEEK_CUR);
+	}
+	if(!data_bytes) goto error;
+
+	r->fmt = fmt;
+	r->channels = channels;
+	r->rate = rate;
+	r->bits = bits;
+	r->data_start = data_start;
+	r->data_bytes = data_bytes;
+	r->pos = 0;
+	r->ok = 1;
+	fseek(r->f, (long)data_start, SEEK_SET);
+	return 0;
+
+error:
+	fclose(r->f);
+	r->f = NULL;
+	return -1;
+}
+
+uint64_t wav_get_length(const struct wav_reader *r)
+{
+	return r->data_bytes / (r->channels * (r->bits / 8));
+}
+
+int wav_reader_close(struct wav_reader *r)
+{
+	if(!r->f) return -1;
+	int rc = fclose(r->f);
+	r->f = NULL;
+	return rc ? -1 : 0;
+}
+
+/* Read one frame (all channels) as a mono float. Returns 0 on success, -1 at EOF/error. */
+static int read_one_frame(struct wav_reader *r, float *out)
+{
+	if(r->pos >= wav_get_length(r)) return -1;
+	double acc = 0;
+	int c;
+	for(c = 0; c < (int)r->channels; c++) {
+		double v = 0;
+		if(r->fmt == 3) {
+			float f;
+			if(fread(&f, 4, 1, r->f) != 1) return -1;
+			v = f;
+		} else if(r->bits == 8) {
+			unsigned char b;
+			if(fread(&b, 1, 1, r->f) != 1) return -1;
+			v = ((int)b - 128) / 128.0;
+		} else if(r->bits == 16) {
+			unsigned u;
+			if(read_le16(r->f, &u)) return -1;
+			int16_t s = (int16_t)u;
+			v = s / 32768.0;
+		} else if(r->bits == 24) {
+			unsigned char b[3];
+			if(fread(b, 1, 3, r->f) != 3) return -1;
+			int32_t s = (b[0] | (b[1] << 8) | (b[2] << 16));
+			if(s & 0x800000) s |= ~0xffffff;   /* sign extend */
+			v = s / 8388608.0;
+		} else if(r->bits == 32) {
+			uint32_t u;
+			if(read_le32(r->f, &u)) return -1;
+			v = (int32_t)u / 2147483648.0;
+		} else {
+			return -1;
+		}
+		acc += v;
+	}
+	*out = (float)(acc / r->channels);
+	r->pos++;
+	return 0;
+}
+
+long wav_read_samples(struct wav_reader *r, float *out, long count)
+{
+	long n = 0;
+	while(n < count) {
+		if(read_one_frame(r, &out[n])) break;
+		n++;
+	}
+	return n;
+}

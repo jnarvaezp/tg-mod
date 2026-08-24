@@ -36,6 +36,38 @@ int main(void)
 		CHECK(data_sz == 44100u * 2, "data size field");
 		fclose(f);
 	}
+
+	/* --- read-back round trip --- */
+	struct wav_reader r;
+	CHECK(wav_open_read(path, &r) == 0, "open read");
+	CHECK(r.rate == 44100, "read rate");
+	CHECK(r.channels == 1, "read channels");
+	CHECK(wav_get_length(&r) == 44100, "read length");
+	float out[44100];
+	CHECK(wav_read_samples(&r, out, 44100) == 44100, "read all");
+	CHECK(fabs(out[0] - buf[0]) < 1.0 / 16384.0, "sample 0 approx");
+	CHECK(fabs(out[12345] - buf[12345]) < 1.0 / 16384.0, "sample 12345 approx");
+	CHECK(wav_reader_close(&r) == 0, "close read");
+
+	/* --- stereo downmix: write stereo, read as mono average --- */
+	const char *st = "test_wav_st.wav";
+	struct wav_writer sw;
+	CHECK(wav_open_write(st, 44100, 2, 16, &sw) == 0, "open stereo write");
+	float stbuf[2 * 4410];
+	for(i = 0; i < 4410; i++) {
+		stbuf[2 * i] = 0.25f;
+		stbuf[2 * i + 1] = 0.75f;
+	}
+	CHECK(wav_write_samples(&sw, stbuf, 2 * 4410) == 0, "write stereo");
+	CHECK(wav_close(&sw) == 0, "close stereo");
+	struct wav_reader sr;
+	CHECK(wav_open_read(st, &sr) == 0, "open stereo read");
+	CHECK(sr.channels == 2, "stereo channels");
+	float m[4410];
+	CHECK(wav_read_samples(&sr, m, 4410) == 4410, "read stereo frames");
+	CHECK(fabs(m[0] - 0.5f) < 1.0 / 16384.0, "downmix avg");
+	CHECK(wav_reader_close(&sr) == 0, "close stereo read");
+	remove(st);
 	remove(path);
 
 	if(failures) { fprintf(stderr, "%d failure(s)\n", failures); return 1; }

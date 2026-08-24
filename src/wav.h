@@ -40,4 +40,28 @@ int wav_write_samples(struct wav_writer *w, const float *samples, int count);
 /* Finalize headers and close. Returns 0 on success, -1 on error. */
 int wav_close(struct wav_writer *w);
 
+struct wav_reader {
+	FILE *f;
+	unsigned rate;
+	unsigned channels;
+	unsigned bits;
+	unsigned fmt;
+	uint64_t data_start;
+	uint64_t data_bytes;
+	uint64_t pos;
+	int ok;
+};
+
+/* Open an existing PCM/float WAV file for reading. Returns 0 on success, -1 on error. */
+int wav_open_read(const char *path, struct wav_reader *r);
+
+/* Read up to `count` frames as mono floats (multi-channel frames averaged). Returns frames read, 0 at EOF. */
+long wav_read_samples(struct wav_reader *r, float *out, long count);
+
+/* Total number of frames in the file. */
+uint64_t wav_get_length(const struct wav_reader *r);
+
+/* Close the reader. Returns 0 on success, -1 on error. */
+int wav_reader_close(struct wav_reader *r);
+
 #endif
