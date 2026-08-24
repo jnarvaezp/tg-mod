@@ -174,6 +174,22 @@ const char *get_input_device_name(int index)
 	return NULL;
 }
 
+/* Iguala dos nombres de dispositivo, ignorando el sufijo "(hw:X,Y)"
+ * (el índice ALSA cambia al reconectar el USB). */
+static int device_name_matches(const char *a, const char *b)
+{
+	if(!strcmp(a, b)) return 1;
+	const char *pa = strrchr(a, '(');
+	const char *pb = strrchr(b, '(');
+	if(pa && pb && pa > a && pb > b) {
+		size_t la = pa - a;
+		size_t lb = pb - b;
+		if(la == lb && !strncmp(a, b, la))
+			return 1;
+	}
+	return 0;
+}
+
 int find_input_device_by_name(const char *name)
 {
 	if(!name || !*name) return paNoDevice;
@@ -182,7 +198,7 @@ int find_input_device_by_name(const char *name)
 		const PaDeviceInfo *di = Pa_GetDeviceInfo(i);
 		if(!di) continue;
 		if(di->maxInputChannels <= 0) continue;
-		if(di->name && !strcmp(di->name, name))
+		if(di->name && device_name_matches(di->name, name))
 			return i;
 	}
 	return paNoDevice;
@@ -213,6 +229,7 @@ int start_portaudio(int *nominal_sample_rate, double *real_sample_rate, const ch
 			debug("Using saved input device '%s' (index %d)\n", preferred, found);
 		} else {
 			debug("Saved input device '%s' not found; falling back to default\n", preferred);
+			error("Saved input device '%s' not found; using the system default", preferred);
 		}
 	}
 	if(chosen == paNoDevice) {
