@@ -18,6 +18,7 @@
 
 #include "tg.h"
 #include "session.h"
+#include "stats.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -1286,6 +1287,14 @@ guint refresh(struct main_window *w)
 	}
 	session_add_cycle(&sc);
 
+	struct stats_point sp;
+	memset(&sp, 0, sizeof(sp));
+	sp.wall_ms = sc.wall_ms;
+	sp.rate = sc.rate;
+	sp.be = sc.be;
+	sp.amp = sc.amp;
+	stats_add(&sp);
+
 	return FALSE;
 }
 
@@ -1305,6 +1314,7 @@ static void start_interface(GApplication* app, void *p)
 	memset(w, 0, sizeof(struct main_window));
 
 	session_init();
+	stats_init();
 
 	w->app = GTK_APPLICATION(app);
 
