@@ -1115,6 +1115,18 @@ int main(int argc, char **argv)
 	gtk_disable_setlocale();
 
 #ifdef DEBUG
+	if(argc > 2 && !strcmp("analyze", argv[1])) {
+		struct offline_result r;
+		if(analyze_audio_file(argv[2], 0, DEFAULT_LA, 0, &r)) {
+			fprintf(stderr, "analyze failed for %s\n", argv[2]);
+			return 1;
+		}
+		printf("signal %d\nbph %d\nrate %.3f s/d\nbe %.3f ms\namp %.1f deg\n",
+		       r.signal, r.guessed_bph, r.rate, r.be, r.amp);
+		return 0;
+	}
+#endif
+#ifdef DEBUG
 	if(argc > 1 && !strcmp("test",argv[1])) {
 		testing = 1;
 		argv++; argc--;

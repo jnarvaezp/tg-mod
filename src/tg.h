@@ -137,6 +137,17 @@ int analyze_pa_data(struct processing_data *pd, int bph, double la, uint64_t eve
 int analyze_pa_data_cal(struct processing_data *pd, struct calibration_data *cd);
 void set_audio_light(bool light);
 
+/* offline.c */
+struct offline_result {
+	int signal;         /* 1 si se obtuvo un resultado bueno */
+	int guessed_bph;
+	double rate;        /* s/d */
+	double be;          /* ms */
+	double amp;         /* deg (0 = no disponible) */
+};
+
+int analyze_audio_file(const char *path, int bph, double la, double cal, struct offline_result *res);
+
 /* --- offline / file source --- */
 int load_audio_file(const char *path);    /* 0 = ok, -1 = error */
 int close_audio_file(void);               /* 0 = ok */
