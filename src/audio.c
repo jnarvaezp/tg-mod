@@ -581,6 +581,7 @@ static struct recorder {
 	char *path;
 	pthread_t thread;
 	struct wav_writer w;
+	uint64_t start;      /* mic_written al comenzar la grabación */
 	uint64_t recorded;   /* muestras ya escritas al archivo */
 } rec;
 
@@ -589,9 +590,11 @@ static void record_drain(void)
 	pthread_mutex_lock(&audio_mutex);
 	if(file_src.active) { pthread_mutex_unlock(&audio_mutex); return; }
 	uint64_t target = mic_written;
-	if(target <= rec.recorded) { pthread_mutex_unlock(&audio_mutex); return; }
-	uint64_t n = target - rec.recorded;
-	if(n > PA_BUFF_SIZE) { rec.recorded = target - PA_BUFF_SIZE; n = PA_BUFF_SIZE; }
+	uint64_t first = rec.start + rec.recorded;
+	if(first >= target) { pthread_mutex_unlock(&audio_mutex); return; }
+	uint64_t n = target - first;
+	/* Si nos quedamos atrás y el inicio se salió del ring (32 s), saltar. */
+	if(n > PA_BUFF_SIZE) { first = target - PA_BUFF_SIZE; n = PA_BUFF_SIZE; }
 	/* Copiar hasta 1 s por pasada para acotar el lock. */
 	if(n > (uint64_t)PA_SAMPLE_RATE) n = PA_SAMPLE_RATE;
 
@@ -599,10 +602,10 @@ static void record_drain(void)
 	if(!tmp) { pthread_mutex_unlock(&audio_mutex); return; }
 	uint64_t k;
 	for(k = 0; k < n; k++) {
-		uint64_t idx = (rec.recorded + k) % PA_BUFF_SIZE;
+		uint64_t idx = (first + k) % PA_BUFF_SIZE;
 		tmp[k] = pa_buffers[idx];
 	}
-	rec.recorded += n;
+	rec.recorded = first + n - rec.start;
 	pthread_mutex_unlock(&audio_mutex);
 
 	if(wav_write_samples(&rec.w, tmp, (int)n)) {
@@ -634,8 +637,9 @@ int start_recording(const char *path)
 
 	if(wav_open_write(path, rate, 1, 16, &rec.w)) return -1;
 	rec.path = strdup(path);
-	rec.recorded = 0;
 	pthread_mutex_lock(&audio_mutex);
+	rec.start = mic_written;
+	rec.recorded = 0;
 	rec.active = 1;
 	pthread_mutex_unlock(&audio_mutex);
 	pthread_create(&rec.thread, NULL, record_thread, NULL);
