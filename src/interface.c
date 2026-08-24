@@ -365,7 +365,7 @@ static void handle_gain_change(GtkSpinButton *b, struct main_window *w)
 {
 	if(!w->controls_active) return;
 	double g = gtk_spin_button_get_value(b);
-	if(g < 1.0) g = 1.0;
+	if(g < 0.1) g = 0.1;
 	if(g > 100.0) g = 100.0;
 	w->gain = g;
 	set_audio_gain(g);
@@ -1035,7 +1035,7 @@ static void init_main_window(struct main_window *w)
 	// Gain label + spin button
 	label = gtk_label_new("gain");
 	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
-	w->gain_spin_button = gtk_spin_button_new_with_range(1.0, 100.0, 0.5);
+	w->gain_spin_button = gtk_spin_button_new_with_range(0.1, 100.0, 0.1);
 	gtk_spin_button_set_value(GTK_SPIN_BUTTON(w->gain_spin_button), w->gain);
 	gtk_spin_button_set_digits(GTK_SPIN_BUTTON(w->gain_spin_button), 1);
 	gtk_entry_set_width_chars(GTK_ENTRY(w->gain_spin_button), 5);

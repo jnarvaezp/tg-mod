@@ -170,7 +170,7 @@ int get_recording(void);                  /* 1 si grabando */
  * Returns the number of samples actually copied. */
 int get_recent_audio(float *out, int count);
 
-/* Set the input gain multiplier applied in the PA callback (1.0 .. 100.0). */
+/* Set the input gain multiplier applied in the PA callback (0.1 .. 100.0, <1 attenuates). */
 void set_audio_gain(double g);
 
 /* Bandpass cutoff frequency in Hz used by algo.c:setup_buffers. */
@@ -305,7 +305,7 @@ struct main_window {
 	int cal; // 0.1 s/d
 	gchar *input_device; // preferred input device name (NULL = system default)
 	int restart_portaudio; // flag: re-open PortAudio when restarting computer
-	double gain; // audio input gain multiplier (1.0 = no amplification)
+	double gain; // audio input gain multiplier (0.1 .. 100, <1 attenuates)
 	int filter_cutoff; // bandpass cutoff frequency in Hz (default 3000)
 	int nominal_sr;
 

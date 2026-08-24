@@ -55,7 +55,7 @@ static void file_pump_locked(void);
 
 void set_audio_gain(double g)
 {
-	if(g < 1.0) g = 1.0;
+	if(g < 0.1) g = 0.1;
 	if(g > 100.0) g = 100.0;
 	pthread_mutex_lock(&audio_mutex);
 	audio_gain = g;
