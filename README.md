@@ -71,6 +71,13 @@ Binary .deb packages can be downloaded from https://tg.ciovil.li
   `(hw:X,Y)` suffix, so a replugged microphone keeps working; use the
   refresh button next to the mic selector to re-enumerate devices.
 
+## Testing
+
+- `make check` runs the unit tests: WAV module, session log and DSP regression
+  (synthetic clips at 12000–36000 BPH, with/without noise, controlled beat
+  error). Drop real recordings into `tests/fixtures/*.wav` to include them in
+  the DSP regression suite (they must at least detect a signal).
+
 ## Compiling from sources
 
 The source code of tg can probably be built by any C99 compiler, however

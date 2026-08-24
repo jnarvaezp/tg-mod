@@ -54,13 +54,17 @@ Uso: menú Command → «Open recording…» para analizar un WAV sin micrófono
   build; `tg-timer debug full` añade el detalle por detección (`max/med/cnt`).
   Niveles: 0 = silencioso, 1 = resumen por ciclo, 2 = detalle.
 
-## Fase 2 — Tests de regresión DSP
+## Fase 2 — Tests de regresión DSP (completada)
 
-**Rama:** `feature/dsp-regression-tests`
+**Rama:** `feature/dsp-regression-tests` — **Estado:** completada.
 
-- Suite de tests con clips WAV de referencia (reloj a varias BPH).
-- Validación de `period` / `rate` / `be` / `amp` de `algo.c`.
-- Estructura de tests en C (assert + make target) o script comparador.
+- `tests/test_dsp.c` (make check): clips sintéticos a 12000–36000 BPH con y sin
+  ruido, beat error controlado, y fixtures reales opcionales en
+  `tests/fixtures/*.wav` (deben detectar señal). Valida signal/bph/rate/be/amp
+  vía `analyze_audio_file()`.
+- Nota: 12000/14400 BPH quedan fijados como `signal=0` (el guard de
+  `process()`, algo.c:978, rechaza periodos ≥ 0.5 s a 44.1 kHz — limitación
+  conocida, pendiente de futuro ajuste).
 
 ## Fase 3 — Calidad de señal / diagnóstico (parcialmente completada)
 
