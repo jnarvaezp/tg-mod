@@ -423,6 +423,31 @@ int get_recent_audio(float *out, int count)
 	return n;
 }
 
+/** Nivel de la entrada más reciente (~100 ms): pico y RMS en [0,1].
+ *  Safe to call from any thread. */
+int get_audio_level(float *peak, float *rms)
+{
+	pthread_mutex_lock(&audio_mutex);
+	if(file_src.active) file_pump_locked();
+	int wp = write_pointer;
+	int n = wp;
+	if((unsigned)n > PA_SAMPLE_RATE / 10) n = PA_SAMPLE_RATE / 10;
+	float pm = 0, sum = 0;
+	int i;
+	for(i = 0; i < n; i++) {
+		int idx = wp - n + i;
+		if(idx < 0) idx += PA_BUFF_SIZE;
+		float a = pa_buffers[idx];
+		if(a < 0) a = -a;
+		if(a > pm) pm = a;
+		sum += a * a;
+	}
+	pthread_mutex_unlock(&audio_mutex);
+	if(peak) *peak = pm;
+	if(rms) *rms = n > 0 ? sqrtf(sum / n) : 0;
+	return n;
+}
+
 int pause_portaudio(void)
 {
 	if(pa_stream) {

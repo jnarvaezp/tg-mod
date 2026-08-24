@@ -268,6 +268,7 @@ static gboolean quit(struct main_window *w)
 {
 	g_source_remove(w->kick_timeout);
 	g_source_remove(w->save_timeout);
+	if(w->level_timeout) g_source_remove(w->level_timeout);
 	w->zombie = 1;
 	lock_computer(w->computer);
 	kill_computer(w);
@@ -488,6 +489,18 @@ static void handle_save_session_log(GtkMenuItem *m, struct main_window *w)
 		gtk_widget_destroy(d);
 	}
 	g_free(dir);
+}
+
+static gboolean update_level(struct main_window *w)
+{
+	float peak = 0;
+	get_audio_level(&peak, NULL);
+	gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(w->level_bar), peak);
+	if(peak > 0.98f)
+		gtk_widget_show(w->clip_label);
+	else
+		gtk_widget_hide(w->clip_label);
+	return TRUE;
 }
 
 static void update_audio_mode_ui(struct main_window *w)
@@ -1056,6 +1069,15 @@ static void init_main_window(struct main_window *w)
 	w->source_label = label;
 	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
+	// Level meter
+	w->level_bar = gtk_progress_bar_new();
+	gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(w->level_bar), 0);
+	gtk_widget_set_size_request(w->level_bar, 120, -1);
+	gtk_box_pack_start(GTK_BOX(hbox), w->level_bar, FALSE, FALSE, 0);
+	w->clip_label = gtk_label_new("CLIP");
+	gtk_box_pack_start(GTK_BOX(hbox), w->clip_label, FALSE, FALSE, 0);
+	gtk_widget_hide(w->clip_label);
+
 	// Is there a more elegant way?
 	GtkWidget *empty = gtk_label_new("");
 	gtk_box_pack_start(GTK_BOX(hbox), empty, TRUE, FALSE, 0);
@@ -1311,6 +1333,7 @@ static void start_interface(GApplication* app, void *p)
 	update_audio_mode_ui(w);
 
 	w->kick_timeout = g_timeout_add_full(G_PRIORITY_LOW,100,(GSourceFunc)kick_computer,w,NULL);
+	w->level_timeout = g_timeout_add_full(G_PRIORITY_LOW, 100, (GSourceFunc)update_level, w, NULL);
 	w->save_timeout = g_timeout_add_full(G_PRIORITY_LOW,10000,(GSourceFunc)save_on_change_timer,w,NULL);
 #ifdef DEBUG
 	if(testing)

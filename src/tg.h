@@ -170,6 +170,9 @@ int get_recording(void);                  /* 1 si grabando */
  * Returns the number of samples actually copied. */
 int get_recent_audio(float *out, int count);
 
+/* Peak and RMS level of the most recent ~100 ms of input (0..1). */
+int get_audio_level(float *peak, float *rms);
+
 /* Set the input gain multiplier applied in the PA callback (0.1 .. 100.0, <1 attenuates). */
 void set_audio_gain(double g);
 
@@ -310,6 +313,9 @@ struct main_window {
 	int nominal_sr;
 
 	GtkWidget *source_label;
+	GtkWidget *level_bar;
+	GtkWidget *clip_label;
+	guint level_timeout;
 	GtkWidget *record_item;
 	GtkWidget *stop_record_item;
 	GtkWidget *close_rec_item;
