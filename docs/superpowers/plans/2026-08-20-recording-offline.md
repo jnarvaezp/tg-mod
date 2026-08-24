@@ -1052,12 +1052,13 @@ static uint64_t mic_written = 0;
 En el callback, tras actualizar `write_pointer` y `timestamp` bajo el mutex (audio.c:116-119), añade:
 
 ```c
-		uint64_t stored = (wp + frame_count) % PA_BUFF_SIZE;
-		(void)stored;
 		mic_written += (uint64_t)(info->light ? (frame_count + 1) / 2 : frame_count);
 ```
 
-(Colócalo dentro del mismo bloque con mutex, después de `timestamp += frame_count;`.)
+(Colócalo dentro del mismo bloque con mutex, después de `timestamp += frame_count;`.
+`mic_written` aproxima las muestras reales almacenadas (en light se guarda ~la
+mitad); los índices de anillo resultantes siempre están en rango, así que un
+pequeño sobreconteo en light solo puede leer muestras algo más antiguas.)
 
 - [ ] **Step 3: Estado del recorder y el thread de drenaje**
 
@@ -1137,7 +1138,10 @@ int stop_recording(void)
 	rec.active = 0;
 	pthread_mutex_unlock(&audio_mutex);
 
-	pthread_join(rec.thread, NULL);
+	/* Si stop_recording se llama desde el propio record_thread (p. ej. ante un
+	 * fallo de escritura), no hay que joinearnos a nosotros mismos (EDEADLK). */
+	if(!pthread_equal(pthread_self(), rec.thread))
+		pthread_join(rec.thread, NULL);
 	/* drenar lo que quede */
 	record_drain();
 	wav_close(&rec.w);
