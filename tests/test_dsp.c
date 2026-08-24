@@ -73,8 +73,36 @@ static void test_clip(int bph, double dur, double pulse_ms, double tic_amp,
 		CHECK(fabs(r.be - be_offset_ms) < be_tol, "be");
 	}
 	remove(path);
+	/* amp=0.0 significa "no disponible": offline.c lo pone a 0 cuando
+	 * la*amp queda fuera de [135,360] (algo.c:813). En los clips sintéticos
+	 * siempre sale 0; el camino amp real lo cubren test_amp() y los
+	 * fixtures de grabaciones reales (Fase 3). */
 	printf("%-14s signal=%d bph=%d rate=%+.2f be=%.2f amp=%.1f\n",
 	       tag, r.signal, r.guessed_bph, r.rate, r.be, r.amp);
+}
+
+/* Cobertura de amplitud: el sintético nunca produce amp válida (empírico).
+ * compute_amplitude() (algo.c:757) mide el ancho de pulso en las ventanas
+ * [tic-period/8, tic): el máximo de la envolvente del burst sintético cae
+ * exactamente en tic (el borde de la ventana), así que la medida sale <= 0
+ * y la validación 135 < la*amp < 360 (algo.c:813) rechaza siempre. Probado
+ * con pulse_ms 2-20, portadora 2-4 kHz y tic/tock_amp 1.0-1.5: amp=0 en
+ * todos. El camino amp real queda cubierto por los fixtures de grabaciones
+ * reales (Fase 3); aquí se fija el comportamiento actual conocido. */
+static void test_amp(void)
+{
+	char path[512];
+	snprintf(path, sizeof(path), "test_dsp_out/amp.wav");
+	gen_clip(path, 21600, 4.0, 4.0, 1.0, 1.0, 0.0, 0.0);
+
+	struct offline_result r;
+	CHECK(analyze_audio_file(path, 0, DEFAULT_LA, 0, &r) == 0, "analyze ok");
+	CHECK(r.signal == 1, "signal");
+	CHECK(r.guessed_bph == 21600, "bph");
+	CHECK(r.amp == 0, "amp unavailable (clamped)");
+	remove(path);
+	printf("%-14s signal=%d bph=%d rate=%+.2f be=%.2f amp=%.1f\n",
+	       "amp", r.signal, r.guessed_bph, r.rate, r.be, r.amp);
 }
 
 int main(void)
@@ -86,7 +114,7 @@ int main(void)
 	int i;
 	struct { int bph; int expect_signal; } cases[] = {
 		/* 12000 (0.6 s) y 14400 (0.5 s): el guard de process()
-		 * (algo.c: "Detected period too long") rechaza periodos >= 0.5 s
+		 * (algo.c:978, "Detected period too long") rechaza periodos >= 0.5 s
 		 * a 44.1 kHz; el generador no puede sortear esa limitación. */
 		{ 12000, 0 }, { 14400, 0 },
 		{ 18000, 1 }, { 21600, 1 }, { 28800, 1 }, { 36000, 1 },
@@ -97,6 +125,14 @@ int main(void)
 		test_clip(cases[i].bph, 4.0, 14.0, 1.0, 0.8, 0.0, 0.0,
 		          cases[i].expect_signal, 2.0, 1.0, tag);
 	}
+
+	/* Ruido: la detección debe mantenerse. */
+	test_clip(18000, 4.0, 14.0, 1.0, 0.8, 0.0, 0.05, 1, 10.0, 1.5, "noise5");
+	test_clip(21600, 4.0, 14.0, 1.0, 0.8, 0.0, 0.20, 1, 10.0, 1.5, "noise20");
+	/* Beat error real: tock desplazado +2 ms y +5 ms. */
+	test_clip(21600, 4.0, 14.0, 1.0, 0.8, 2.0, 0.0, 1, 2.0, 1.0, "be2");
+	test_clip(21600, 4.0, 14.0, 1.0, 0.8, 5.0, 0.0, 1, 2.0, 1.0, "be5");
+	test_amp();
 
 	rmdir("test_dsp_out");
 	if(failures) { fprintf(stderr, "%d failure(s)\n", failures); return 1; }
