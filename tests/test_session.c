@@ -76,6 +76,47 @@ int main(void)
 		}
 	}
 
+	/* Ring wrap: fill beyond SESSION_CYCLES, check oldest dropped and order kept.
+	   50000 must match SESSION_CYCLES in src/session.c. */
+	int i;
+	struct session_cycle cw = { 0 };
+	for(i = 0; i < 50000 + 3; i++) {
+		cw.wall_ms = i;
+		session_add_cycle(&cw);
+	}
+	{
+		char json_path[512];
+		FILE *f;
+		long size;
+		char *buf;
+
+		snprintf(json_path, sizeof(json_path), "%s/%s.json", dir, "test_wrap");
+		CHECK(session_save(dir, "test_wrap") == 0, "wrap save ok");
+		f = fopen(json_path, "r");
+		CHECK(f != NULL, "wrap json exists");
+		if(f) {
+			fseek(f, 0, SEEK_END);
+			size = ftell(f);
+			fseek(f, 0, SEEK_SET);
+			buf = malloc(size + 1);
+			CHECK(buf != NULL, "wrap malloc");
+			if(buf) {
+				size_t n = fread(buf, 1, size, f);
+				buf[n] = 0;
+				CHECK(strstr(buf, "\"wall_ms\":0") == NULL, "oldest dropped");
+				CHECK(strstr(buf, "\"wall_ms\":3") != NULL, "first kept is 3");
+				CHECK(strstr(buf, "\"wall_ms\":50002") != NULL, "last kept is 50002");
+				CHECK(strstr(buf, "\"wall_ms\":3") < strstr(buf, "\"wall_ms\":50002"),
+				      "wrap chronological order");
+				free(buf);
+			}
+			fclose(f);
+		}
+		remove(json_path);
+	}
+
+	CHECK(session_save("nonexistent_dir_xyz", "x") == 3, "save to bad dir returns 3");
+
 	remove(json_path);
 	remove(csv_path);
 	remove(raw_path);
