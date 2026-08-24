@@ -75,3 +75,7 @@ test: tg-timer-dbg
 valgrind: tg-timer-vlg
 	valgrind --leak-check=full -v --num-callers=99 --suppressions=.valgrind.supp ./$^
 .PHONY: valgrind
+
+check_PROGRAMS = tests/test_wav
+tests_test_wav_SOURCES = tests/test_wav.c
+TESTS = tests/test_wav
