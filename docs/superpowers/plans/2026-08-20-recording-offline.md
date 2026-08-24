@@ -1485,6 +1485,19 @@ Expected: compila sin errores; `make test` (smoke test 3 s) termina sin crash.
 (En `on_shutdown`, libera también `w->audio_file_name` y `w->pending_audio_file`
 si no son NULL.)
 
+(Notas de revisión para Task 7:
+- Añadir `int saved_is_light;` a `struct main_window`.
+- En `handle_open_recording`: antes de sobrescribir, `g_free(w->pending_audio_file)`;
+  guardar `w->saved_is_light = w->is_light;` y forzar `w->is_light = 0` +
+  `gtk_check_menu_item_set_active(w->light_checkbox, FALSE)`.
+- En `computer_terminated`: al cerrar archivo, restaurar `w->is_light =
+  w->saved_is_light` y el checkbox; al fallar `load_audio_file`, restaurar mic
+  (`is_light`, `nominal_sr`, `resume_portaudio`) y marcar `w->restart_computer =
+  1` para que el siguiente `recompute(w)` re-cree el computer con ajustes de mic.
+- Llamar `update_audio_mode_ui(w)` al final del else de `computer_terminated`
+  (con declaración forward antes de `computer_terminated`) para que label y
+  menús se actualicen tras abrir/cerrar.)
+
 - [ ] **Step 8: Commit**
 
 ```bash
