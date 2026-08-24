@@ -671,9 +671,16 @@ int load_audio_file(const char *path)
 	fs.length = wav_get_length(&fs.rd);
 	fs.path = strdup(path);
 	fs.active = 1;
+	/* Inicializar el reloj ANTES de publicar file_src: si el compute thread
+	 * entra en file_pump_locked() con start_clock == 0, elapsed seria enorme y
+	 * volcaria todo el archivo al ring de golpe. */
+	fs.start_clock = g_get_monotonic_time();
 
 	pthread_mutex_lock(&audio_mutex);
-	if(file_src.active) wav_reader_close(&file_src.rd);
+	if(file_src.active) {
+		wav_reader_close(&file_src.rd);
+		free(file_src.path);
+	}
 	file_src = fs;
 	info.light = false;
 	memset(pa_buffers, 0, sizeof(pa_buffers));
