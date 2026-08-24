@@ -320,6 +320,8 @@ struct main_window {
 	GtkWidget *source_label;
 	GtkWidget *level_bar;
 	GtkWidget *clip_label;
+	GtkWidget *position_combo;
+	int position;   /* POSITION_* actual (etiqueta de los ciclos en vivo) */
 	guint level_timeout;
 	GtkWidget *record_item;
 	GtkWidget *stop_record_item;

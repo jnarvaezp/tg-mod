@@ -19,6 +19,7 @@
 #include "tg.h"
 #include "session.h"
 #include "stats.h"
+#include "report.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -406,6 +407,12 @@ static void handle_gain_change(GtkSpinButton *b, struct main_window *w)
 	set_audio_gain(g);
 }
 
+static void handle_position_change(GtkComboBox *b, struct main_window *w)
+{
+	if(!w->controls_active) return;
+	w->position = gtk_combo_box_get_active(b);
+}
+
 static void handle_cutoff_change(GtkSpinButton *b, struct main_window *w)
 {
 	if(!w->controls_active) return;
@@ -519,6 +526,37 @@ static void handle_save_session_log(GtkMenuItem *m, struct main_window *w)
 	else {
 		GtkWidget *d = gtk_message_dialog_new(GTK_WINDOW(w->window), 0, GTK_MESSAGE_INFO, GTK_BUTTONS_CLOSE,
 			"Session log saved to\n%s/%s.{json,csv,raw}", dir, base);
+		gtk_dialog_run(GTK_DIALOG(d));
+		gtk_widget_destroy(d);
+	}
+	g_free(dir);
+}
+
+static void handle_export_report(GtkMenuItem *m, struct main_window *w)
+{
+	UNUSED(m);
+	char *dir = g_build_filename(g_get_home_dir(), "tg-logs", NULL);
+	if(g_mkdir_with_parents(dir, 0755)) {
+		error("Cannot create report directory %s", dir);
+		g_free(dir);
+		return;
+	}
+	char base[64];
+	time_t t = time(NULL);
+	strftime(base, sizeof(base), "tg-report-%Y%m%d-%H%M%S", localtime(&t));
+	struct report_row rows[POSITION_CR];
+	int n = report_summary(rows, POSITION_CR);
+	int err = 0;
+	char path[1024];
+	snprintf(path, sizeof(path), "%s/%s.csv", dir, base);
+	if(report_write_csv(path, rows, n)) err++;
+	snprintf(path, sizeof(path), "%s/%s.pdf", dir, base);
+	if(report_write_pdf(path, rows, n)) err++;
+	if(err)
+		error("Report: %d file(s) failed in %s", err, dir);
+	else {
+		GtkWidget *d = gtk_message_dialog_new(GTK_WINDOW(w->window), 0, GTK_MESSAGE_INFO, GTK_BUTTONS_CLOSE,
+			"Report saved to\n%s/%s.{csv,pdf}", dir, base);
 		gtk_dialog_run(GTK_DIALOG(d));
 		gtk_widget_destroy(d);
 	}
@@ -1104,6 +1142,21 @@ static void init_main_window(struct main_window *w)
 	gtk_box_pack_start(GTK_BOX(hbox), w->clip_label, FALSE, FALSE, 0);
 	gtk_widget_hide(w->clip_label);
 
+	// Position selector
+	label = gtk_label_new("pos");
+	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+	w->position_combo = gtk_combo_box_text_new();
+	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->position_combo), "none");
+	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->position_combo), "dial up");
+	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->position_combo), "dial down");
+	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->position_combo), "crown up");
+	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->position_combo), "crown down");
+	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->position_combo), "crown left");
+	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->position_combo), "crown right");
+	gtk_combo_box_set_active(GTK_COMBO_BOX(w->position_combo), 0);
+	gtk_box_pack_start(GTK_BOX(hbox), w->position_combo, FALSE, FALSE, 0);
+	g_signal_connect(w->position_combo, "changed", G_CALLBACK(handle_position_change), w);
+
 	// Is there a more elegant way?
 	GtkWidget *empty = gtk_label_new("");
 	gtk_box_pack_start(GTK_BOX(hbox), empty, TRUE, FALSE, 0);
@@ -1161,6 +1214,11 @@ static void init_main_window(struct main_window *w)
 	GtkWidget *session_item = gtk_menu_item_new_with_label("Save session log");
 	gtk_menu_shell_append(GTK_MENU_SHELL(command_menu), session_item);
 	g_signal_connect(session_item, "activate", G_CALLBACK(handle_save_session_log), w);
+
+	// ... Export report
+	GtkWidget *report_item = gtk_menu_item_new_with_label("Export report...");
+	gtk_menu_shell_append(GTK_MENU_SHELL(command_menu), report_item);
+	g_signal_connect(report_item, "activate", G_CALLBACK(handle_export_report), w);
 
 	// ... Open recording
 	GtkWidget *open_rec_item = gtk_menu_item_new_with_label("Open recording...");
@@ -1293,6 +1351,7 @@ guint refresh(struct main_window *w)
 	sp.rate = sc.rate;
 	sp.be = sc.be;
 	sp.amp = sc.amp;
+	sp.position = w->position;
 	stats_add(&sp);
 
 	return FALSE;
@@ -1312,6 +1371,7 @@ static void start_interface(GApplication* app, void *p)
 
 	struct main_window *w = malloc(sizeof(struct main_window));
 	memset(w, 0, sizeof(struct main_window));
+	w->position = POSITION_NONE;
 
 	session_init();
 	stats_init();
