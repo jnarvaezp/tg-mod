@@ -37,10 +37,6 @@ static PaStream *pa_stream = NULL;
  * pa_buffers. Default 1.0 (no amplification). Update via set_audio_gain(). */
 static double audio_gain = 1.0;
 
-/* Bandpass cutoff frequency in Hz used by the DSP filters. Default 3000.
- * Read by algo.c:setup_buffers when constructing the biquad coefficients. */
-int filter_cutoff = DEFAULT_FILTER_CUTOFF;
-
 static struct file_source {
 	char *path;
 	struct wav_reader rd;

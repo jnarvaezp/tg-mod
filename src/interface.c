@@ -34,8 +34,6 @@ int testing = 0;
  * "debug full" = level 2 = detalle). */
 int verbose_level = 0;
 
-int preset_bph[] = PRESET_BPH;
-
 static void print_debug_to(char *format, va_list args, int level)
 {
 	char buf[768];

@@ -18,6 +18,12 @@
 
 #include "tg.h"
 
+int preset_bph[] = PRESET_BPH;
+
+/* Bandpass cutoff frequency in Hz used by the DSP filters. Default 3000.
+ * Read by setup_buffers() when constructing the biquad coefficients. */
+int filter_cutoff = DEFAULT_FILTER_CUTOFF;
+
 struct filter {
 	double a0,a1,a2,b1,b2;
 };

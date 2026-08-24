@@ -79,10 +79,13 @@ valgrind: tg-timer-vlg
 	valgrind --leak-check=full -v --num-callers=99 --suppressions=.valgrind.supp ./$^
 .PHONY: valgrind
 
-check_PROGRAMS = tests/test_wav tests/test_session
+check_PROGRAMS = tests/test_wav tests/test_session tests/test_dsp
 tests_test_wav_SOURCES = tests/test_wav.c src/wav.c
 tests_test_wav_CFLAGS = $(AM_CFLAGS) -I$(srcdir)/src
 tests_test_session_SOURCES = tests/test_session.c src/session.c
 tests_test_session_CFLAGS = $(AM_CFLAGS) -I$(srcdir)/src
 tests_test_session_LDADD = -lpthread
-TESTS = tests/test_wav tests/test_session
+tests_test_dsp_SOURCES = tests/test_dsp.c src/offline.c src/algo.c src/wav.c src/session.c
+tests_test_dsp_CFLAGS = $(AM_CFLAGS) -I$(srcdir)/src
+tests_test_dsp_LDADD = $(FFTW_LIBS) -lpthread -lm
+TESTS = tests/test_wav tests/test_session tests/test_dsp
