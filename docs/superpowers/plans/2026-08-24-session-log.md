@@ -59,8 +59,12 @@ int main(void)
 
 	/* JSON */
 	{
+		char json_path[512], csv_path[512], raw_path[512];
+		snprintf(json_path, sizeof(json_path), "%s/%s.json", dir, "test_session");
+		snprintf(csv_path, sizeof(csv_path), "%s/%s.csv", dir, "test_session");
+		snprintf(raw_path, sizeof(raw_path), "%s/%s.raw", dir, "test_session");
 		char buf[8192] = {0};
-		FILE *f = fopen(dir "/test_session.json", "r");
+		FILE *f = fopen(json_path, "r");
 		CHECK(f != NULL, "json exists");
 		if(f) {
 			size_t n = fread(buf, 1, sizeof(buf)-1, f);
@@ -75,8 +79,12 @@ int main(void)
 
 	/* CSV */
 	{
+		char json_path[512], csv_path[512], raw_path[512];
+		snprintf(json_path, sizeof(json_path), "%s/%s.json", dir, "test_session");
+		snprintf(csv_path, sizeof(csv_path), "%s/%s.csv", dir, "test_session");
+		snprintf(raw_path, sizeof(raw_path), "%s/%s.raw", dir, "test_session");
 		char buf[2048] = {0};
-		FILE *f = fopen(dir "/test_session.csv", "r");
+		FILE *f = fopen(csv_path, "r");
 		CHECK(f != NULL, "csv exists");
 		if(f) {
 			size_t n = fread(buf, 1, sizeof(buf)-1, f);
@@ -91,8 +99,12 @@ int main(void)
 
 	/* RAW */
 	{
+		char json_path[512], csv_path[512], raw_path[512];
+		snprintf(json_path, sizeof(json_path), "%s/%s.json", dir, "test_session");
+		snprintf(csv_path, sizeof(csv_path), "%s/%s.csv", dir, "test_session");
+		snprintf(raw_path, sizeof(raw_path), "%s/%s.raw", dir, "test_session");
 		char buf[1024] = {0};
-		FILE *f = fopen(dir "/test_session.raw", "r");
+		FILE *f = fopen(raw_path, "r");
 		CHECK(f != NULL, "raw exists");
 		if(f) {
 			size_t n = fread(buf, 1, sizeof(buf)-1, f);
