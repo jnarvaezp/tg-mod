@@ -76,12 +76,14 @@ Uso: menú Command → «Open recording…» para analizar un WAV sin micrófono
 - Pendiente: SNR/indicadores más finos, sugerencia automática de ganancia,
   control del volumen de captura ALSA.
 
-## Fase 4 — Estadísticas y tendencia
+## Fase 4 — Estadísticas y tendencia (completada)
 
-**Rama:** `feature/stats-trend`
+**Rama:** `feature/stats-trend` — **Estado:** completada.
 
-- Media / desviación / min / max del rate en vivo.
-- Gráfico de tendencia temporal junto al paperstrip.
+- Módulo `stats` (anillo ~60 min): media/σ/min/max del rate con ventana.
+- Gráfico de tendencia del rate en el panel (bajo el espectro) con cuadrícula
+  centrada en 0, línea del rate y resumen numérico en vivo.
+- El botón Clear resetea también las estadísticas.
 
 ## Fase 5 — Multi-posición + informe
 

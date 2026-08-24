@@ -78,6 +78,11 @@ Binary .deb packages can be downloaded from https://tg.ciovil.li
   error). Drop real recordings into `tests/fixtures/*.wav` to include them in
   the DSP regression suite (they must at least detect a signal).
 
+## Live statistics
+
+The panel shows a live rate-trend chart (last ~5 minutes) with mean, standard
+deviation, min and max of the rate in s/d, updated every computation cycle.
+
 ## Compiling from sources
 
 The source code of tg can probably be built by any C99 compiler, however
