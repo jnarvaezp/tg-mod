@@ -56,8 +56,9 @@ int main(void)
 	CHECK(fabs(s.max - 4.0) < 1e-9, "max");
 	CHECK(fabs(s.sigma - sqrt(2.5)) < 1e-9, "sigma (n-1)");
 
-	/* ventana: solo los últimos 2 (wall_ms 1003,1004) */
-	CHECK(stats_summary(1000, &s) == 2, "window count");
+	/* ventana: últimos 1 ms (trailing, termina en el más reciente wall_ms=1004)
+	 * -> solo 1003 y 1004 */
+	CHECK(stats_summary(1, &s) == 2, "window count");
 	CHECK(fabs(s.mean - 3.5) < 1e-9, "window mean");
 
 	/* rango: copia desde 1003 -> 2 puntos en orden */
@@ -164,12 +165,12 @@ int stats_summary(uint64_t window_ms, struct stats_summary *out)
 {
 	pthread_mutex_lock(&st.m);
 	int start = st.n < STATS_CAP ? 0 : st.wp;
-	uint64_t oldest = st.n ? st.pts[start].wall_ms : 0;
+	uint64_t newest = st.n ? st.pts[(start + st.n - 1) % STATS_CAP].wall_ms : 0;
 	double sum = 0, sq = 0, mn = 0, mx = 0;
 	int cnt = 0, i;
 	for(i = 0; i < st.n; i++) {
 		const struct stats_point *p = &st.pts[(start + i) % STATS_CAP];
-		if(window_ms && p->wall_ms > oldest + window_ms) continue;
+		if(window_ms && p->wall_ms + window_ms < newest) continue;   /* ventana trailing */
 		if(!cnt || p->rate < mn) mn = p->rate;
 		if(!cnt || p->rate > mx) mx = p->rate;
 		sum += p->rate;
