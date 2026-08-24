@@ -17,6 +17,7 @@
 */
 
 #include "tg.h"
+#include "stats.h"
 
 cairo_pattern_t *black,*white,*red,*green,*blue,*blueish,*yellow;
 
@@ -777,6 +778,7 @@ static void handle_clear_trace(GtkButton *b, struct output_panel *op)
 		}
 		unlock_computer(op->computer);
 		gtk_widget_queue_draw(op->paperstrip_drawing_area);
+		stats_clear();
 	}
 }
 
@@ -895,6 +897,73 @@ static gboolean spectrum_draw_event(GtkWidget *widget, cairo_t *c, struct output
 	}
 
 	return FALSE;
+}
+
+#define TREND_HEIGHT 60
+#define TREND_MAX_POINTS 3000   /* ~5 min a 10 ciclos/s */
+
+static void trend_draw_event(GtkWidget *w, cairo_t *c, struct output_panel *op)
+{
+	UNUSED(op);
+	GtkAllocation temp;
+	gtk_widget_get_allocation(w, &temp);
+	int width = temp.width;
+	int height = temp.height;
+	if(width < 20 || height < 20) return;
+
+	cairo_set_source_rgb(c, 1, 1, 1);
+	cairo_paint(c);
+
+	struct stats_point pts[TREND_MAX_POINTS];
+	int n = stats_get_range(0, pts, TREND_MAX_POINTS);
+	if(n < 2) return;
+
+	double maxabs = 10;
+	int i;
+	for(i = 0; i < n; i++) {
+		double a = fabs(pts[i].rate);
+		if(a > maxabs) maxabs = a;
+	}
+	maxabs *= 1.15;
+	if(maxabs < 10) maxabs = 10;
+
+	double mid = height / 2.0;
+	double scale = (height - 20) / 2.0 / maxabs;
+
+	/* cuadrícula: centro 0 y límites ±maxabs */
+	cairo_set_line_width(c, 1);
+	cairo_set_source_rgb(c, 0.85, 0.85, 0.85);
+	cairo_move_to(c, 0, mid);
+	cairo_line_to(c, width, mid);
+	cairo_stroke(c);
+	cairo_set_source_rgb(c, 0.92, 0.92, 0.92);
+	cairo_move_to(c, 0, mid - scale * maxabs);
+	cairo_line_to(c, width, mid - scale * maxabs);
+	cairo_move_to(c, 0, mid + scale * maxabs);
+	cairo_line_to(c, width, mid + scale * maxabs);
+	cairo_stroke(c);
+
+	/* línea del rate */
+	cairo_set_source_rgb(c, 0, 0.6, 0);
+	cairo_set_line_width(c, 1.5);
+	cairo_move_to(c, 0, mid - pts[0].rate * scale);
+	for(i = 1; i < n; i++) {
+		double x = (double)i / (n - 1) * width;
+		cairo_line_to(c, x, mid - pts[i].rate * scale);
+	}
+	cairo_stroke(c);
+
+	/* texto de estadísticas */
+	struct stats_summary s;
+	stats_summary(0, &s);
+	char txt[128];
+	snprintf(txt, sizeof(txt), "n=%d  media=%.1f  sigma=%.1f  min=%.1f  max=%.1f s/d",
+	         s.n, s.mean, s.sigma, s.min, s.max);
+	cairo_set_source_rgb(c, 0, 0, 0);
+	cairo_select_font_face(c, "sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+	cairo_set_font_size(c, 11);
+	cairo_move_to(c, 4, height - 4);
+	cairo_show_text(c, txt);
 }
 
 static gboolean spectrum_tick(struct output_panel *op)
@@ -1048,6 +1117,13 @@ struct output_panel *init_output_panel(struct computer *comp, struct snapshot *s
 	spectrum_state_init(st);
 	g_object_set_data_full(G_OBJECT(op->spectrum_drawing_area), "spectrum-state",
 	                       st, spectrum_state_destroy_notify);
+
+	// Trend chart (rate over time)
+	op->trend_drawing_area = gtk_drawing_area_new();
+	gtk_widget_set_size_request(op->trend_drawing_area, 300, TREND_HEIGHT);
+	gtk_box_pack_start(GTK_BOX(vbox2), op->trend_drawing_area, FALSE, TRUE, 0);
+	g_signal_connect(op->trend_drawing_area, "draw", G_CALLBACK(trend_draw_event), op);
+	gtk_widget_set_events(op->trend_drawing_area, GDK_EXPOSURE_MASK);
 
 	GtkWidget *hbox3 = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
 	gtk_box_pack_start(GTK_BOX(vbox2), hbox3, FALSE, TRUE, 0);

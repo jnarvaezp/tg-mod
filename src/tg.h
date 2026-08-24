@@ -259,6 +259,7 @@ struct output_panel {
 	GtkWidget *toc_drawing_area;
 	GtkWidget *period_drawing_area;
 	GtkWidget *paperstrip_drawing_area;
+	GtkWidget *trend_drawing_area;
 	GtkWidget *spectrum_drawing_area;
 	GtkWidget *clear_button;
 	guint spectrum_timeout;
