@@ -331,6 +331,9 @@ struct main_window {
 
 extern int preset_bph[];
 
+/* Verbose console output (debug() to stderr) in all builds. */
+extern int verbose;
+
 #ifdef DEBUG
 extern int testing;
 #endif

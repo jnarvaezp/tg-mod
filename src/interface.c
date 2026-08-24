@@ -29,6 +29,10 @@
 int testing = 0;
 #endif
 
+/* Verbose console output: debug() also prints to stderr in release builds
+ * when the app is started with the "debug" argument. */
+int verbose = 0;
+
 int preset_bph[] = PRESET_BPH;
 
 void print_debug(char *format,...)
@@ -40,6 +44,8 @@ void print_debug(char *format,...)
 	va_end(args);
 #ifdef DEBUG
 	fputs(buf,stderr);
+#else
+	if(verbose) fputs(buf,stderr);
 #endif
 	session_add_raw(g_get_real_time() / 1000, buf);
 }
@@ -1344,6 +1350,12 @@ static void handle_open(GApplication* app, GFile **files, int cnt, char *hint, v
 int main(int argc, char **argv)
 {
 	gtk_disable_setlocale();
+
+	/* "debug": verbose console output (also in release builds). */
+	if(argc > 1 && !strcmp("debug", argv[1])) {
+		verbose = 1;
+		argv++; argc--;
+	}
 
 #ifdef DEBUG
 	if(argc > 2 && !strcmp("analyze", argv[1])) {
