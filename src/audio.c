@@ -17,6 +17,7 @@
 */
 
 #include "tg.h"
+#include "wav.h"
 #include <portaudio.h>
 
 /* Huge buffer of audio */
@@ -25,6 +26,8 @@ int write_pointer = 0;
 uint64_t timestamp = 0;
 pthread_mutex_t audio_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+static PaStream *pa_stream = NULL;
+
 /* Input gain multiplier applied in the PA callback before storing into
  * pa_buffers. Default 1.0 (no amplification). Update via set_audio_gain(). */
 static double audio_gain = 1.0;
@@ -32,6 +35,18 @@ static double audio_gain = 1.0;
 /* Bandpass cutoff frequency in Hz used by the DSP filters. Default 3000.
  * Read by algo.c:setup_buffers when constructing the biquad coefficients. */
 int filter_cutoff = DEFAULT_FILTER_CUTOFF;
+
+static struct file_source {
+	char *path;
+	struct wav_reader rd;
+	uint64_t length;      /* frames totales del archivo */
+	uint64_t ring_pos;    /* frames bombeados al ring */
+	int64_t start_clock;  /* g_get_monotonic_time() us en (re)start */
+	int fast;             /* headless: bombear todo */
+	int active;
+} file_src;
+
+static void file_pump_locked(void);
 
 void set_audio_gain(double g)
 {
@@ -250,6 +265,7 @@ int start_portaudio(int *nominal_sample_rate, double *real_sample_rate, const ch
 	err = Pa_StartStream(stream);
 	if(err!=paNoError)
 		goto error;
+	pa_stream = stream;
 
 	const PaStreamInfo *stream_info = Pa_GetStreamInfo(stream);
 	*nominal_sample_rate = PA_SAMPLE_RATE;
@@ -288,6 +304,7 @@ uint64_t get_timestamp(int light)
 static void fill_buffers(struct processing_buffers *ps, int light)
 {
 	pthread_mutex_lock(&audio_mutex);
+	if(file_src.active) file_pump_locked();
 	uint64_t ts = timestamp;
 	int wp = write_pointer;
 	pthread_mutex_unlock(&audio_mutex);
@@ -374,6 +391,7 @@ int get_recent_audio(float *out, int count)
 {
 	if(count <= 0 || !out) return 0;
 	pthread_mutex_lock(&audio_mutex);
+	if(file_src.active) file_pump_locked();
 	int wp = write_pointer;
 	/* Number of samples currently available (timestamp counts frames
 	 * written since last reset). For light mode timestamp is in half-rate
@@ -395,4 +413,157 @@ int get_recent_audio(float *out, int count)
 	}
 	pthread_mutex_unlock(&audio_mutex);
 	return n;
+}
+
+int pause_portaudio(void)
+{
+	if(pa_stream) {
+		PaError err = Pa_StopStream(pa_stream);
+		if(err != paNoError) {
+			error("Error pausing audio: %s", Pa_GetErrorText(err));
+			return 1;
+		}
+	}
+	return 0;
+}
+
+int resume_portaudio(void)
+{
+	if(pa_stream) {
+		PaError err = Pa_StartStream(pa_stream);
+		if(err != paNoError) {
+			error("Error resuming audio: %s", Pa_GetErrorText(err));
+			return 1;
+		}
+	}
+	return 0;
+}
+
+/* Debe llamarse con audio_mutex tomado. */
+static void file_pump_locked(void)
+{
+	if(!file_src.active) return;
+	uint64_t target;
+	if(file_src.fast) {
+		target = file_src.length;
+	} else {
+		int64_t elapsed = g_get_monotonic_time() - file_src.start_clock;
+		uint64_t sec_frames = elapsed > 0
+			? (uint64_t)((double)elapsed * file_src.rd.rate / 1e6)
+			: 0;
+		target = sec_frames < file_src.length ? sec_frames : file_src.length;
+	}
+	while(file_src.ring_pos < target) {
+		long want = (long)(target - file_src.ring_pos);
+		if(want > 4096) want = 4096;
+		float tmp[4096];
+		long got = wav_read_samples(&file_src.rd, tmp, want);
+		if(got <= 0) { file_src.ring_pos = target; break; }
+		unsigned wp = write_pointer;
+		unsigned len = MIN((unsigned)got, PA_BUFF_SIZE - wp);
+		memcpy(pa_buffers + wp, tmp, len * sizeof(float));
+		if((unsigned)got > len)
+			memcpy(pa_buffers, tmp + len, (got - len) * sizeof(float));
+		write_pointer = (wp + (unsigned)got) % PA_BUFF_SIZE;
+		timestamp += (uint64_t)got;
+		file_src.ring_pos += (uint64_t)got;
+	}
+}
+
+int load_audio_file(const char *path)
+{
+	struct file_source fs;
+	memset(&fs, 0, sizeof(fs));
+	if(wav_open_read(path, &fs.rd)) return -1;
+	fs.length = wav_get_length(&fs.rd);
+	fs.path = strdup(path);
+	fs.active = 1;
+
+	pthread_mutex_lock(&audio_mutex);
+	if(file_src.active) {
+		wav_reader_close(&file_src.rd);
+		free(file_src.path);
+	}
+	file_src = fs;
+	info.light = false;
+	memset(pa_buffers, 0, sizeof(pa_buffers));
+	write_pointer = 0;
+	timestamp = 0;
+	pthread_mutex_unlock(&audio_mutex);
+
+	audio_file_restart();
+	return 0;
+}
+
+int close_audio_file(void)
+{
+	pthread_mutex_lock(&audio_mutex);
+	if(file_src.active) {
+		wav_reader_close(&file_src.rd);
+		free(file_src.path);
+		memset(&file_src, 0, sizeof(file_src));
+		memset(pa_buffers, 0, sizeof(pa_buffers));
+		write_pointer = 0;
+		timestamp = 0;
+	}
+	pthread_mutex_unlock(&audio_mutex);
+	return 0;
+}
+
+int get_audio_file_mode(void)
+{
+	int m;
+	pthread_mutex_lock(&audio_mutex);
+	m = file_src.active;
+	pthread_mutex_unlock(&audio_mutex);
+	return m;
+}
+
+uint64_t get_audio_file_length(void)
+{
+	uint64_t v;
+	pthread_mutex_lock(&audio_mutex);
+	v = file_src.active ? file_src.length : 0;
+	pthread_mutex_unlock(&audio_mutex);
+	return v;
+}
+
+uint64_t get_audio_file_position(void)
+{
+	uint64_t v;
+	pthread_mutex_lock(&audio_mutex);
+	v = file_src.active ? file_src.ring_pos : 0;
+	pthread_mutex_unlock(&audio_mutex);
+	return v;
+}
+
+unsigned get_audio_file_rate(void)
+{
+	unsigned v = 0;
+	pthread_mutex_lock(&audio_mutex);
+	if(file_src.active) v = file_src.rd.rate;
+	pthread_mutex_unlock(&audio_mutex);
+	return v;
+}
+
+void audio_file_restart(void)
+{
+	pthread_mutex_lock(&audio_mutex);
+	if(file_src.active) {
+		fseek(file_src.rd.f, (long)file_src.rd.data_start, SEEK_SET);
+		file_src.rd.pos = 0;
+		file_src.ring_pos = 0;
+		file_src.start_clock = g_get_monotonic_time();
+		memset(pa_buffers, 0, sizeof(pa_buffers));
+		write_pointer = 0;
+		timestamp = 0;
+	}
+	pthread_mutex_unlock(&audio_mutex);
+}
+
+void audio_file_set_fast(int fast)
+{
+	pthread_mutex_lock(&audio_mutex);
+	file_src.fast = fast;
+	pthread_mutex_unlock(&audio_mutex);
 }

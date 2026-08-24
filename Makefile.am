@@ -12,7 +12,8 @@ tg_timer_SOURCES = src/algo.c \
 		   src/interface.c \
 		   src/output_panel.c \
 		   src/serializer.c \
-		   src/tg.h
+		   src/tg.h \
+		   src/wav.c
 
 tg_timer_dbg_SOURCES = $(tg_timer_SOURCES)
 tg_timer_prf_SOURCES = $(tg_timer_SOURCES)

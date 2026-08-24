@@ -137,6 +137,25 @@ int analyze_pa_data(struct processing_data *pd, int bph, double la, uint64_t eve
 int analyze_pa_data_cal(struct processing_data *pd, struct calibration_data *cd);
 void set_audio_light(bool light);
 
+/* --- offline / file source --- */
+int load_audio_file(const char *path);    /* 0 = ok, -1 = error */
+int close_audio_file(void);               /* 0 = ok */
+int get_audio_file_mode(void);            /* 1 si hay un archivo activo */
+uint64_t get_audio_file_length(void);     /* frames totales */
+uint64_t get_audio_file_position(void);   /* frames bombeados */
+unsigned get_audio_file_rate(void);
+void audio_file_restart(void);
+void audio_file_set_fast(int fast);       /* headless: bombea todo de una vez */
+
+/* Mic stream control (sin reiniciar Pa): */
+int pause_portaudio(void);
+int resume_portaudio(void);
+
+/* --- recording --- */
+int start_recording(const char *path);    /* 0 = ok */
+int stop_recording(void);                 /* 0 = ok */
+int get_recording(void);                  /* 1 si grabando */
+
 /* Copy the most recent audio samples for live visualization (oscilloscope).
  * Returns the number of samples actually copied. */
 int get_recent_audio(float *out, int count);
