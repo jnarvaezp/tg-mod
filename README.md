@@ -54,6 +54,14 @@ Binary .deb packages can be downloaded from https://tg.ciovil.li
 - **Headless**: `tg-timer-dbg analyze file.wav` (debug build) prints
   rate / beat error / amplitude / BPH and exits.
 
+## Debugging
+
+- **Verbose console**: run `tg-timer debug` to print the DSP diagnostics to
+  the terminal in any build (release included).
+- **Session log**: Command menu → *Save session log* writes the computation
+  cycles to `~/tg-logs/tg-session-<timestamp>.{json,csv,raw}` (structured
+  JSON/CSV + raw debug text) for post-mortem analysis.
+
 ## Compiling from sources
 
 The source code of tg can probably be built by any C99 compiler, however

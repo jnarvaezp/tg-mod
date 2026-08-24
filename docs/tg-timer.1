@@ -3,7 +3,7 @@
 tg \- a program for timing mechanincal watches
 .SH SYNOPSIS
 .nf
-.B tg-timer
+.B tg-timer [debug]
 .B tg-timer-dbg analyze
 .IR file.wav
 .fi
@@ -11,7 +11,13 @@ tg \- a program for timing mechanincal watches
 Tg (tg-timer) is a program to evaluate the performance of mechanical watch
 movements. Tg works with the noise produced by a watch mechanism, and it
 produces real-time readings of the rate (or accuracy) and various other
-operational parameters. 
+operational parameters.
+.SH ARGUMENTS
+The optional \fBdebug\fP argument enables verbose console output (the DSP
+diagnostics) in all builds, including the release binary.
+.SH SESSION LOG
+The \fBSave session log\fP menu item writes the computation cycles to
+\fB~/tg-logs/tg-session-<timestamp>.{json,csv,raw}\fP for debugging. 
 .SH RECORDING AND OFFLINE ANALYSIS
 Record the microphone to a WAV with the \fBRecord to file...\fP menu item.
 Open a WAV with \fBOpen recording...\fP to analyze it without live audio.

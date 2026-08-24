@@ -39,6 +39,17 @@ Uso: menú Command → «Open recording…» para analizar un WAV sin micrófono
 - Habilita el resto de fases (clips de referencia para tests, análisis sin
   silencio, compartir muestras).
 
+## Fase 1.5 — Session log + verbose (completada)
+
+**Rama:** `feature/session-log` — **Estado:** completada.
+
+- Menú Command → *Save session log*: guarda en `~/tg-logs/` tres archivos por
+  sesión (`tg-session-<timestamp>.{json,csv,raw}`) con los ciclos de cómputo
+  (timestamp, signal, bph, rate, be, amp, period, sigma) y el texto de debug
+  crudo. Funciona en builds release y debug.
+- Argumento `tg-timer debug`: salida verbosa de consola (DSP) en cualquier
+  build.
+
 ## Fase 2 — Tests de regresión DSP
 
 **Rama:** `feature/dsp-regression-tests`
