@@ -1120,7 +1120,7 @@ static void *record_thread(void *unused)
 int start_recording(const char *path)
 {
 	pthread_mutex_lock(&audio_mutex);
-	if(rec.active) { pthread_mutex_unlock(&audio_mutex); return -1; }
+	if(rec.active || file_src.active) { pthread_mutex_unlock(&audio_mutex); return -1; }
 	unsigned rate = info.light ? PA_SAMPLE_RATE / 2 : PA_SAMPLE_RATE;
 	pthread_mutex_unlock(&audio_mutex);
 
@@ -1131,7 +1131,15 @@ int start_recording(const char *path)
 	rec.recorded = 0;
 	rec.active = 1;
 	pthread_mutex_unlock(&audio_mutex);
-	pthread_create(&rec.thread, NULL, record_thread, NULL);
+	if(pthread_create(&rec.thread, NULL, record_thread, NULL)) {
+		pthread_mutex_lock(&audio_mutex);
+		rec.active = 0;
+		pthread_mutex_unlock(&audio_mutex);
+		wav_close(&rec.w);
+		free(rec.path);
+		memset(&rec, 0, sizeof(rec));
+		return -1;
+	}
 	return 0;
 }
 
@@ -1163,6 +1171,12 @@ int get_recording(void)
 	return a;
 }
 ```
+
+(Nota: el contador `mic_written` debe ponerse a 0 en TODOS los sitios que
+resetean el ring (`write_pointer = 0; timestamp = 0;`): `set_audio_light`,
+`audio_file_restart`, `load_audio_file` y `close_audio_file`. De lo contrario
+se rompe la invarianza `mic_written % PA_BUFF_SIZE == write_pointer` y la
+grabación tras un cambio de modo light/archivo lee posiciones desalineadas.)
 
 - [ ] **Step 4: Compilar y verificar**
 
