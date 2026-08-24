@@ -23,6 +23,7 @@
 #include <unistd.h>
 #include <libgen.h>
 #include <ctype.h>
+#include <time.h>
 
 #ifdef DEBUG
 int testing = 0;
@@ -457,6 +458,30 @@ static void handle_stop_recording(GtkMenuItem *m, struct main_window *w)
 	UNUSED(m);
 	stop_recording();
 	update_audio_mode_ui(w);
+}
+
+static void handle_save_session_log(GtkMenuItem *m, struct main_window *w)
+{
+	UNUSED(m);
+	char *dir = g_build_filename(g_get_home_dir(), "tg-logs", NULL);
+	if(g_mkdir_with_parents(dir, 0755)) {
+		error("Cannot create log directory %s", dir);
+		g_free(dir);
+		return;
+	}
+	char base[64];
+	time_t t = time(NULL);
+	strftime(base, sizeof(base), "tg-session-%Y%m%d-%H%M%S", localtime(&t));
+	int err = session_save(dir, base);
+	if(err)
+		error("Session log: %d file(s) failed in %s", err, dir);
+	else {
+		GtkWidget *d = gtk_message_dialog_new(GTK_WINDOW(w->window), 0, GTK_MESSAGE_INFO, GTK_BUTTONS_CLOSE,
+			"Session log saved to\n%s/%s.{json,csv,raw}", dir, base);
+		gtk_dialog_run(GTK_DIALOG(d));
+		gtk_widget_destroy(d);
+	}
+	g_free(dir);
 }
 
 static void update_audio_mode_ui(struct main_window *w)
@@ -1077,6 +1102,11 @@ static void init_main_window(struct main_window *w)
 	gtk_menu_shell_append(GTK_MENU_SHELL(command_menu), w->save_all_item);
 	g_signal_connect(w->save_all_item, "activate", G_CALLBACK(save_all), w);
 	gtk_widget_set_sensitive(w->save_all_item, FALSE);
+
+	// ... Save session log
+	GtkWidget *session_item = gtk_menu_item_new_with_label("Save session log");
+	gtk_menu_shell_append(GTK_MENU_SHELL(command_menu), session_item);
+	g_signal_connect(session_item, "activate", G_CALLBACK(handle_save_session_log), w);
 
 	// ... Open recording
 	GtkWidget *open_rec_item = gtk_menu_item_new_with_label("Open recording...");
