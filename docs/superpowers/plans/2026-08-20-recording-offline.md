@@ -937,6 +937,9 @@ int analyze_audio_file(const char *path, int bph, double la, double cal, struct 
 }
 ```
 
+(Nota de revisión: añadir un tope de memoria antes del `malloc`, p. ej.
+`#define OFFLINE_MAX_FRAMES 200000000ull` y `if(nframes > OFFLINE_MAX_FRAMES) { wav_reader_close(&rd); return 1; }`.)
+
 - [ ] **Step 3: Hook `--analyze` en `main()` (`src/interface.c`)**
 
 En `main()`, justo tras `gtk_disable_setlocale();` (interface.c:1115) y dentro de `#ifdef DEBUG`:
