@@ -417,9 +417,10 @@ int wav_open_read(const char *path, struct wav_reader *r)
 			have_fmt = 1;
 			break;
 		}
-		fseek(r->f, (long)csize, SEEK_CUR);
+		fseek(r->f, (long)(csize + (csize & 1)), SEEK_CUR);   /* WAV chunks are even-padded */
 	}
-	if(!have_fmt || (fmt != 1 && fmt != 3) || channels == 0 || rate == 0) goto error;
+	if(!have_fmt || (fmt != 1 && fmt != 3) || channels == 0 || rate == 0 ||
+	   bits < 8 || bits > 32 || bits % 8 != 0) goto error;
 
 	/* Pass 2: find the data chunk. */
 	fseek(r->f, 12, SEEK_SET);
@@ -432,7 +433,7 @@ int wav_open_read(const char *path, struct wav_reader *r)
 			data_bytes = csize;
 			break;
 		}
-		fseek(r->f, (long)csize, SEEK_CUR);
+		fseek(r->f, (long)(csize + (csize & 1)), SEEK_CUR);   /* WAV chunks are even-padded */
 	}
 	if(!data_bytes) goto error;
 
