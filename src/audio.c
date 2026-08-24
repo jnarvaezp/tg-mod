@@ -385,6 +385,7 @@ void set_audio_light(bool light)
 		memset(pa_buffers, 0, sizeof(pa_buffers));
 		write_pointer = 0;
 		timestamp = 0;
+		mic_written = 0;
 		pthread_mutex_unlock(&audio_mutex);
 	}
 }
@@ -497,6 +498,7 @@ int load_audio_file(const char *path)
 	memset(pa_buffers, 0, sizeof(pa_buffers));
 	write_pointer = 0;
 	timestamp = 0;
+	mic_written = 0;
 	pthread_mutex_unlock(&audio_mutex);
 
 	audio_file_restart();
@@ -513,6 +515,7 @@ int close_audio_file(void)
 		memset(pa_buffers, 0, sizeof(pa_buffers));
 		write_pointer = 0;
 		timestamp = 0;
+		mic_written = 0;
 	}
 	pthread_mutex_unlock(&audio_mutex);
 	return 0;
@@ -565,6 +568,7 @@ void audio_file_restart(void)
 		memset(pa_buffers, 0, sizeof(pa_buffers));
 		write_pointer = 0;
 		timestamp = 0;
+		mic_written = 0;
 	}
 	pthread_mutex_unlock(&audio_mutex);
 }
@@ -631,7 +635,7 @@ static void *record_thread(void *unused)
 int start_recording(const char *path)
 {
 	pthread_mutex_lock(&audio_mutex);
-	if(rec.active) { pthread_mutex_unlock(&audio_mutex); return -1; }
+	if(rec.active || file_src.active) { pthread_mutex_unlock(&audio_mutex); return -1; }
 	unsigned rate = info.light ? PA_SAMPLE_RATE / 2 : PA_SAMPLE_RATE;
 	pthread_mutex_unlock(&audio_mutex);
 
@@ -642,7 +646,15 @@ int start_recording(const char *path)
 	rec.recorded = 0;
 	rec.active = 1;
 	pthread_mutex_unlock(&audio_mutex);
-	pthread_create(&rec.thread, NULL, record_thread, NULL);
+	if(pthread_create(&rec.thread, NULL, record_thread, NULL)) {
+		pthread_mutex_lock(&audio_mutex);
+		rec.active = 0;
+		pthread_mutex_unlock(&audio_mutex);
+		wav_close(&rec.w);
+		free(rec.path);
+		memset(&rec, 0, sizeof(rec));
+		return -1;
+	}
 	return 0;
 }
 
