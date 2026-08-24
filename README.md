@@ -44,6 +44,16 @@ You can now launch tg by typing
 
 Binary .deb packages can be downloaded from https://tg.ciovil.li
 
+## Recording and offline analysis
+
+- **Record**: Command menu → *Record to file...* saves the mic input to a
+  WAV file; *Stop recording* finalizes it.
+- **Analyze offline**: Command menu → *Open recording...* loads a WAV and
+  runs the same analysis pipeline without needing live audio. While a
+  recording is open, the timegrapher replays it at real time.
+- **Headless**: `tg-timer-dbg analyze file.wav` (debug build) prints
+  rate / beat error / amplitude / BPH and exits.
+
 ## Compiling from sources
 
 The source code of tg can probably be built by any C99 compiler, however

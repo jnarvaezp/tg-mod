@@ -24,7 +24,11 @@ Premisas de trabajo: ver `docs/DEVELOPMENT.md`.
 2. Merge a `master` y push.
 3. Eliminar la rama feature tras el merge.
 
-## Fase 1 — Grabación + análisis offline
+## Fase 1 — Grabación + análisis offline (completada)
+
+**Estado:** completada. Añade `src/wav.c`, `src/offline.c` y grabación a WAV.
+Uso: menú Command → «Open recording…» para analizar un WAV sin micrófono;
+«Record to file…» para grabar; CLI `tg-timer-dbg analyze <archivo.wav>`.
 
 **Rama:** `feature/recording-offline`
 
