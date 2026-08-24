@@ -279,6 +279,7 @@ int report_write_pdf(const char *path, const struct report_row *rows, int n);
 #include <string.h>
 #include <math.h>
 #include <cairo.h>
+#include <cairo-pdf.h>
 
 int report_summary(struct report_row *rows, int max_rows)
 {
