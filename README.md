@@ -57,7 +57,8 @@ Binary .deb packages can be downloaded from https://tg.ciovil.li
 ## Debugging
 
 - **Verbose console**: run `tg-timer debug` to print the DSP diagnostics to
-  the terminal in any build (release included).
+  the terminal in any build (release included). `tg-timer --help` lists all
+  command-line options.
 - **Session log**: Command menu → *Save session log* writes the computation
   cycles to `~/tg-logs/tg-session-<timestamp>.{json,csv,raw}` (structured
   JSON/CSV + raw debug text) for post-mortem analysis.

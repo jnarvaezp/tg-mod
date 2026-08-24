@@ -1351,6 +1351,19 @@ int main(int argc, char **argv)
 {
 	gtk_disable_setlocale();
 
+	int ai;
+	for(ai = 1; ai < argc; ai++)
+		if(!strcmp(argv[ai], "--help") || !strcmp(argv[ai], "-h")) {
+			printf("Usage: %s [options]\n", argv[0]);
+			printf("  debug            verbose console output (DSP diagnostics)\n");
+#ifdef DEBUG
+			printf("  analyze <wav>    headless analysis of an audio file\n");
+			printf("  test             GUI smoke test (3 seconds)\n");
+#endif
+			printf("  -h, --help       show this help\n");
+			return 0;
+		}
+
 	/* "debug": verbose console output (also in release builds). */
 	if(argc > 1 && !strcmp("debug", argv[1])) {
 		verbose = 1;
