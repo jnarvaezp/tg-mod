@@ -8,13 +8,16 @@ Premisas de trabajo: ver `docs/DEVELOPMENT.md`.
 
 ## Estado actual
 
-- **Rama:** `feature/input-device-selector` (trabajo pendiente de integrar en `master`).
-- Cambios sin commitear: selección de dispositivo de entrada, ganancia, cutoff
-  del filtro, espectro en vivo y marcadores de 3 fases.
+- **Master** en `07f1dd2` (pusheado a `origin` = fork propio). Sin ramas
+  feature pendientes de integrar; todas las completadas se eliminaron.
+- Fases completadas: 0 (integración del trabajo pendiente), 1 (grabación +
+  análisis offline), 1.5 (session log + verbose), 3-base (calidad de señal).
 - Características existentes: rate (s/d), beat error (ms), amplitud (grados),
   BPH, calibración automática (~15 min), paperstrip, formas de onda tic/toc y
-  periodo, snapshots en pestañas, guardado/carga `.tgj`, persistencia de
-  configuración (INI).
+  periodo, espectro en vivo, snapshots en pestañas, guardado/carga `.tgj`,
+  persistencia de configuración (INI), grabación WAV, análisis offline
+  (`--analyze`), session log (JSON/CSV/raw), control de ganancia con medidor
+  de nivel y selección robusta de dispositivo.
 
 ## Fase 0 — Integración del trabajo pendiente
 
