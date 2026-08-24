@@ -63,6 +63,13 @@ Binary .deb packages can be downloaded from https://tg.ciovil.li
   cycles to `~/tg-logs/tg-session-<timestamp>.{json,csv,raw}` (structured
   JSON/CSV + raw debug text) for post-mortem analysis.
 
+- **Input level**: the gain control (0.1–100) can attenuate or amplify the
+  input; the live level bar shows the input peak and a **CLIP** indicator
+  lights up when the signal saturates.
+- **Device**: the saved input device is matched ignoring the ALSA
+  `(hw:X,Y)` suffix, so a replugged microphone keeps working; use the
+  refresh button next to the mic selector to re-enumerate devices.
+
 ## Compiling from sources
 
 The source code of tg can probably be built by any C99 compiler, however

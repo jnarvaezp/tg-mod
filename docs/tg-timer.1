@@ -18,7 +18,13 @@ diagnostics) in all builds, including the release binary.
 \fB--help\fP (or \fB-h\fP) prints a usage summary and exits.
 .SH SESSION LOG
 The \fBSave session log\fP menu item writes the computation cycles to
-\fB~/tg-logs/tg-session-<timestamp>.{json,csv,raw}\fP for debugging. 
+\fB~/tg-logs/tg-session-<timestamp>.{json,csv,raw}\fP for debugging.
+.SH INPUT LEVEL
+The gain control ranges from 0.1 (attenuation) to 100 (amplification). A
+live level bar shows the input peak; a \fBCLIP\fP indicator appears when the
+signal saturates. The saved input device is matched ignoring the
+\fB(hw:X,Y)\fP suffix, and a refresh button next to the mic selector
+re-enumerates devices. 
 .SH RECORDING AND OFFLINE ANALYSIS
 Record the microphone to a WAV with the \fBRecord to file...\fP menu item.
 Open a WAV with \fBOpen recording...\fP to analyze it without live audio.

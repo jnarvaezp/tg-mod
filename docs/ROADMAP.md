@@ -58,12 +58,15 @@ Uso: menú Command → «Open recording…» para analizar un WAV sin micrófono
 - Validación de `period` / `rate` / `be` / `amp` de `algo.c`.
 - Estructura de tests en C (assert + make target) o script comparador.
 
-## Fase 3 — Calidad de señal / diagnóstico
+## Fase 3 — Calidad de señal / diagnóstico (parcialmente completada)
 
-**Rama:** `feature/signal-quality`
+**Rama:** `feature/signal-quality` — **Estado:** implementada la base.
 
-- SNR del tick, nivel de entrada, detección de recorte y ruido de fondo.
-- Medidor visual + sugerencia de ganancia / cutoff.
+- Ganancia 0.1–100 (atenuación) y medidor de nivel en vivo con alerta CLIP.
+- Emparejamiento robusto de dispositivo (ignora `(hw:X,Y)`), aviso de fallback
+  y refresco de la lista.
+- Pendiente: SNR/indicadores más finos, sugerencia automática de ganancia,
+  control del volumen de captura ALSA.
 
 ## Fase 4 — Estadísticas y tendencia
 
