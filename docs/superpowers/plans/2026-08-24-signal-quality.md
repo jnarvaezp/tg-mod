@@ -268,6 +268,14 @@ y tras el combo, añade el botón de refresco:
 
 (El `g_signal_connect(w->device_combo_box, "changed", ...)` existente se mantiene después.)
 
+(Notas de revisión Task 3:
+- `populate_devices`: usar `match_input_device_name` (emparejamiento difuso) para
+  la selección activa, y llamar `gtk_combo_box_set_active` MIENTRAS el handler
+  está bloqueado (si se hace tras desbloquear, el combo en "System default"
+  dispara `handle_device_change` y borra la preferencia).
+- Guardar el botón de refresco en `w->dev_refresh` y deshabilitarlo en modo
+  archivo dentro de `update_audio_mode_ui`.)
+
 - [ ] **Step 4: Compilar y verificar**
 
 ```bash
