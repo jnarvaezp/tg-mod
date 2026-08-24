@@ -14,7 +14,8 @@ tg_timer_SOURCES = src/algo.c \
 		   src/output_panel.c \
 		   src/serializer.c \
 		   src/tg.h \
-		   src/wav.c
+		   src/wav.c \
+		   src/session.c
 
 tg_timer_dbg_SOURCES = $(tg_timer_SOURCES)
 tg_timer_prf_SOURCES = $(tg_timer_SOURCES)
@@ -78,7 +79,10 @@ valgrind: tg-timer-vlg
 	valgrind --leak-check=full -v --num-callers=99 --suppressions=.valgrind.supp ./$^
 .PHONY: valgrind
 
-check_PROGRAMS = tests/test_wav
+check_PROGRAMS = tests/test_wav tests/test_session
 tests_test_wav_SOURCES = tests/test_wav.c src/wav.c
 tests_test_wav_CFLAGS = $(AM_CFLAGS) -I$(srcdir)/src
-TESTS = tests/test_wav
+tests_test_session_SOURCES = tests/test_session.c src/session.c
+tests_test_session_CFLAGS = $(AM_CFLAGS) -I$(srcdir)/src
+tests_test_session_LDADD = -lpthread
+TESTS = tests/test_wav tests/test_session
