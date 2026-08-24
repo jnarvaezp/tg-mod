@@ -83,6 +83,12 @@ Binary .deb packages can be downloaded from https://tg.ciovil.li
 The panel shows a live rate-trend chart (last ~5 minutes) with mean, standard
 deviation, min and max of the rate in s/d, updated every computation cycle.
 
+## Positions and report
+
+Select the watch position (dial up/down, crown up/down/left/right) with the
+"pos" selector to tag the live measurements. Command menu → *Export report...*
+writes a per-position summary to `~/tg-logs/tg-report-<timestamp>.{csv,pdf}`.
+
 ## Compiling from sources
 
 The source code of tg can probably be built by any C99 compiler, however

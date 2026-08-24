@@ -85,13 +85,15 @@ Uso: menú Command → «Open recording…» para analizar un WAV sin micrófono
   centrada en 0, línea del rate y resumen numérico en vivo.
 - El botón Clear resetea también las estadísticas.
 
-## Fase 5 — Multi-posición + informe
+## Fase 5 — Multi-posición + informe (completada)
 
-**Rama:** `feature/positions-report`
+**Rama:** `feature/positions-report` — **Estado:** completada.
 
-- Etiquetado de posición por medición (dial up/down, crown left/right, ...).
-- Resumen por posición (media / ΔSD).
-- Exportación de informe (CSV/PDF).
+- Selector de posición en la UI (none / dial up / dial down / crown up /
+  crown down / crown left / crown right) que etiqueta los ciclos en vivo.
+- Resumen por posición (n, media/σ/min/max del rate + media de be/amp).
+- Menú Command → *Export report...*: escribe en `~/tg-logs/`
+  `tg-report-<timestamp>.{csv,pdf}` (PDF generado con Cairo).
 
 ## Fase 6 — i18n + pulido de UX
 
