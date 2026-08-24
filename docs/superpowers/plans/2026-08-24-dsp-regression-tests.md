@@ -45,6 +45,12 @@ make tg-timer 2>&1 | grep -iE "warning|error"; echo "build ok"
 make check 2>&1 | tail -4
 ```
 
+(Nota de implementación: además de `preset_bph`, se movió `filter_cutoff` de
+`audio.c` a `algo.c` — `setup_buffers` lo referencia y sin el movimiento el
+enlace headless del test falla. `PRESET_BPH` incluye 12000/14400 pero el guard
+de `process()` (algo.c:978, `period >= sample_rate/2`) los rechaza a 44.1 kHz
+(0.6 s / 0.5 s): el test los fija como `signal=0` documentado.)
+
 - [ ] **Step 2: Escribir `tests/test_dsp.c` (generador sintético + aserciones)**
 
 ```c
