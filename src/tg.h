@@ -321,6 +321,7 @@ struct main_window {
 	int close_audio;             /* cerrar archivo al reiniciar computer */
 	int restart_computer;        /* forzar reinicio de computer sin tocar Pa */
 	int audio_file_mode;         /* 1 = analizando un archivo */
+	int saved_is_light;          /* estado de is_light antes de abrir un archivo */
 
 	GKeyFile *config_file;
 	gchar *config_file_name;

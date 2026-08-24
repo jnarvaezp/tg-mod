@@ -159,6 +159,7 @@ static void on_shutdown(GApplication *app, void *p)
 
 static void recompute(struct main_window *w);
 static void computer_callback(void *w);
+static void update_audio_mode_ui(struct main_window *w);
 
 static guint computer_terminated(struct main_window *w)
 {
@@ -192,6 +193,8 @@ static guint computer_terminated(struct main_window *w)
 			w->nominal_sr = PA_SAMPLE_RATE;
 			g_free(w->audio_file_name);
 			w->audio_file_name = NULL;
+			w->is_light = w->saved_is_light;
+			gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(w->light_checkbox), w->saved_is_light);
 		}
 
 		unsigned file_rate = 0;
@@ -218,13 +221,17 @@ static guint computer_terminated(struct main_window *w)
 					error("Failed to open recording: %s", w->pending_audio_file);
 					w->audio_file_mode = 0;
 					w->nominal_sr = PA_SAMPLE_RATE;
+					w->is_light = w->saved_is_light;
+					gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(w->light_checkbox), w->saved_is_light);
 					resume_portaudio();
+					w->restart_computer = 1;   /* re-kick: recrear computer con ajustes de mic */
 				} else {
 					w->audio_file_mode = 1;
 				}
 				g_free(w->pending_audio_file);
 				w->pending_audio_file = NULL;
 			}
+			update_audio_mode_ui(w);
 			recompute(w);
 		}
 	}
@@ -365,8 +372,6 @@ static void handle_cutoff_change(GtkSpinButton *b, struct main_window *w)
 	recompute(w);
 }
 
-static void update_audio_mode_ui(struct main_window *w);
-
 static void handle_open_recording(GtkMenuItem *m, struct main_window *w)
 {
 	UNUSED(m);
@@ -388,8 +393,11 @@ static void handle_open_recording(GtkMenuItem *m, struct main_window *w)
 			if(w->audio_file_mode) close_audio_file();
 			g_free(w->audio_file_name);
 			w->audio_file_name = g_path_get_basename(filename);
+			g_free(w->pending_audio_file);
 			w->pending_audio_file = g_strdup(filename);
+			w->saved_is_light = w->is_light;
 			w->is_light = 0;
+			gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(w->light_checkbox), FALSE);
 			w->restart_computer = 1;
 			pause_portaudio();
 			recompute(w);
