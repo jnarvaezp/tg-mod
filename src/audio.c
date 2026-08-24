@@ -26,6 +26,11 @@ int write_pointer = 0;
 uint64_t timestamp = 0;
 pthread_mutex_t audio_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+/* Nº real de muestras almacenadas en pa_buffers (distinto de timestamp en
+ * modo light, donde timestamp cuenta frames originales pero se guarda la
+ * mitad). Lo usa la grabación para drenar el ring. */
+static uint64_t mic_written = 0;
+
 static PaStream *pa_stream = NULL;
 
 /* Input gain multiplier applied in the PA callback before storing into
@@ -131,6 +136,7 @@ static int paudio_callback(const void *input_buffer,
 	pthread_mutex_lock(&audio_mutex);
 	write_pointer = wp;
 	timestamp += frame_count;
+	mic_written += (uint64_t)(info->light ? (frame_count + 1) / 2 : frame_count);
 	pthread_mutex_unlock(&audio_mutex);
 	return 0;
 }
@@ -568,4 +574,98 @@ void audio_file_set_fast(int fast)
 	pthread_mutex_lock(&audio_mutex);
 	file_src.fast = fast;
 	pthread_mutex_unlock(&audio_mutex);
+}
+
+static struct recorder {
+	int active;
+	char *path;
+	pthread_t thread;
+	struct wav_writer w;
+	uint64_t recorded;   /* muestras ya escritas al archivo */
+} rec;
+
+static void record_drain(void)
+{
+	pthread_mutex_lock(&audio_mutex);
+	if(file_src.active) { pthread_mutex_unlock(&audio_mutex); return; }
+	uint64_t target = mic_written;
+	if(target <= rec.recorded) { pthread_mutex_unlock(&audio_mutex); return; }
+	uint64_t n = target - rec.recorded;
+	if(n > PA_BUFF_SIZE) { rec.recorded = target - PA_BUFF_SIZE; n = PA_BUFF_SIZE; }
+	/* Copiar hasta 1 s por pasada para acotar el lock. */
+	if(n > (uint64_t)PA_SAMPLE_RATE) n = PA_SAMPLE_RATE;
+
+	float *tmp = malloc(n * sizeof(float));
+	if(!tmp) { pthread_mutex_unlock(&audio_mutex); return; }
+	uint64_t k;
+	for(k = 0; k < n; k++) {
+		uint64_t idx = (rec.recorded + k) % PA_BUFF_SIZE;
+		tmp[k] = pa_buffers[idx];
+	}
+	rec.recorded += n;
+	pthread_mutex_unlock(&audio_mutex);
+
+	if(wav_write_samples(&rec.w, tmp, (int)n)) {
+		stop_recording();
+	}
+	free(tmp);
+}
+
+static void *record_thread(void *unused)
+{
+	UNUSED(unused);
+	for(;;) {
+		g_usleep(100000);   /* 100 ms */
+		pthread_mutex_lock(&audio_mutex);
+		int active = rec.active;
+		pthread_mutex_unlock(&audio_mutex);
+		if(!active) break;
+		record_drain();
+	}
+	return NULL;
+}
+
+int start_recording(const char *path)
+{
+	pthread_mutex_lock(&audio_mutex);
+	if(rec.active) { pthread_mutex_unlock(&audio_mutex); return -1; }
+	unsigned rate = info.light ? PA_SAMPLE_RATE / 2 : PA_SAMPLE_RATE;
+	pthread_mutex_unlock(&audio_mutex);
+
+	if(wav_open_write(path, rate, 1, 16, &rec.w)) return -1;
+	rec.path = strdup(path);
+	rec.recorded = 0;
+	pthread_mutex_lock(&audio_mutex);
+	rec.active = 1;
+	pthread_mutex_unlock(&audio_mutex);
+	pthread_create(&rec.thread, NULL, record_thread, NULL);
+	return 0;
+}
+
+int stop_recording(void)
+{
+	pthread_mutex_lock(&audio_mutex);
+	if(!rec.active) { pthread_mutex_unlock(&audio_mutex); return -1; }
+	rec.active = 0;
+	pthread_mutex_unlock(&audio_mutex);
+
+	/* stop_recording puede llegar desde record_drain (fallo de wav_write):
+	 * en ese caso no hay que unir el propio hilo. */
+	if(!pthread_equal(pthread_self(), rec.thread))
+		pthread_join(rec.thread, NULL);
+	/* drenar lo que quede */
+	record_drain();
+	wav_close(&rec.w);
+	free(rec.path);
+	memset(&rec, 0, sizeof(rec));
+	return 0;
+}
+
+int get_recording(void)
+{
+	int a;
+	pthread_mutex_lock(&audio_mutex);
+	a = rec.active;
+	pthread_mutex_unlock(&audio_mutex);
+	return a;
 }
