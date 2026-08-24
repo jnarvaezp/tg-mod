@@ -22,6 +22,7 @@ tg-timer
 tg-timer-dbg
 tg-timer-prf
 tg-timer-vlg
+/tests/test_wav
 
 # autotools
 Makefile
