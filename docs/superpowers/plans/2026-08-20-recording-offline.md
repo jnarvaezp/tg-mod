@@ -1022,10 +1022,10 @@ make tg-timer-dbg 2>&1 | grep -iE "warning|error"
 
 Expected: `signal 1`, `bph 18000`, `rate` ≈ 0 (±1 s/d), y valores coherentes.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add src/offline.c src/tg.h src/interface.c tests/gen_tick.py
+git add src/offline.c src/tg.h src/interface.c Makefile.am tests/gen_tick.py
 git commit -m "Add headless offline analysis (--analyze)"
 ```
 
@@ -1209,13 +1209,36 @@ Añade dentro de `struct main_window` (tras `filter_cutoff`, tg.h:280):
 	GtkWidget *record_item;
 	GtkWidget *stop_record_item;
 	GtkWidget *close_rec_item;
+	GtkWidget *light_checkbox;
+	gchar *audio_file_name;      /* nombre del archivo en modo archivo (label) */
 	gchar *pending_audio_file;   /* ruta a cargar tras reiniciar computer */
 	int close_audio;             /* cerrar archivo al reiniciar computer */
 	int restart_computer;        /* forzar reinicio de computer sin tocar Pa */
 	int audio_file_mode;         /* 1 = analizando un archivo */
 ```
 
-- [ ] **Step 2: Handler de fuente/archivo en `recompute` y `computer_terminated`**
+- [ ] **Step 2: Helper de peek de tasa en `src/audio.c` + `src/tg.h`**
+
+En `src/tg.h`, tras `audio_file_set_fast`:
+
+```c
+int audio_file_peek_rate(const char *path, unsigned *rate);  /* 0 = ok */
+```
+
+En `src/audio.c`, tras `audio_file_set_fast`:
+
+```c
+int audio_file_peek_rate(const char *path, unsigned *rate)
+{
+	struct wav_reader rd;
+	if(wav_open_read(path, &rd)) return -1;
+	*rate = rd.rate;
+	wav_reader_close(&rd);
+	return 0;
+}
+```
+
+- [ ] **Step 3: Handler de fuente/archivo en `recompute` y `computer_terminated`**
 
 En `recompute()` (interface.c:243), cambia la condición:
 
@@ -1233,30 +1256,57 @@ En `computer_terminated()` (interface.c:161), dentro del bloque `else`, tras `w-
 			w->close_audio = 0;
 			w->audio_file_mode = 0;
 			w->nominal_sr = PA_SAMPLE_RATE;
+			g_free(w->audio_file_name);
+			w->audio_file_name = NULL;
 		}
 ```
 
-Y tras `struct computer *c = start_computer(w->nominal_sr, w->bph, w->la, w->cal, w->is_light);` y su comprobación de éxito, añade:
+IMPORTANTE — la tasa del archivo debe fijarse ANTES de `start_computer` (el DSP
+dimensiona los buffers con `nominal_sr`); el archivo en sí se carga DESPUÉS de
+`start_computer` (porque `start_computer` llama a `set_audio_light`, que limpia
+el ring). Sustituye la parte de `computer_terminated` donde se crea el computer
+por:
 
 ```c
-		if(w->pending_audio_file) {
-			if(load_audio_file(w->pending_audio_file)) {
-				error("Failed to open recording: %s", w->pending_audio_file);
-				w->audio_file_mode = 0;
-				w->nominal_sr = PA_SAMPLE_RATE;
-				resume_portaudio();
-			} else {
-				w->audio_file_mode = 1;
-				w->nominal_sr = get_audio_file_rate();
+		unsigned file_rate = 0;
+		if(w->pending_audio_file)
+			audio_file_peek_rate(w->pending_audio_file, &file_rate);
+		if(file_rate)
+			w->nominal_sr = file_rate;
+
+		struct computer *c = start_computer(w->nominal_sr, w->bph, w->la, w->cal, w->is_light);
+		if(!c) {
+			g_source_remove(w->kick_timeout);
+			g_source_remove(w->save_timeout);
+			w->zombie = 1;
+			error("Failed to restart computation thread");
+			gtk_widget_destroy(w->window);
+		} else {
+			w->active_panel->computer = w->computer = c;
+			w->computer->callback = computer_callback;
+			w->computer->callback_data = w;
+
+			if(w->pending_audio_file) {
+				if(load_audio_file(w->pending_audio_file)) {
+					error("Failed to open recording: %s", w->pending_audio_file);
+					w->audio_file_mode = 0;
+					w->nominal_sr = PA_SAMPLE_RATE;
+					resume_portaudio();
+				} else {
+					w->audio_file_mode = 1;
+				}
+				g_free(w->pending_audio_file);
+				w->pending_audio_file = NULL;
 			}
-			g_free(w->pending_audio_file);
-			w->pending_audio_file = NULL;
+			recompute(w);
 		}
 ```
 
-(En modo archivo, `is_light` debe estar a 0: el handler de open lo fuerza.)
+(Esto reemplaza el `struct computer *c = start_computer(...)` + comprobación +
+bloque `if(w->pending_audio_file)` que ya existía. En modo archivo `is_light`
+debe estar a 0: el handler de open lo fuerza.)
 
-- [ ] **Step 3: Handlers de menú**
+- [ ] **Step 4: Handlers de menú**
 
 Añade tras `handle_cutoff_change` (interface.c:336):
 
@@ -1282,6 +1332,8 @@ static void handle_open_recording(GtkMenuItem *m, struct main_window *w)
 		g_object_unref(gf);
 		if(filename) {
 			if(w->audio_file_mode) close_audio_file();
+			g_free(w->audio_file_name);
+			w->audio_file_name = g_path_get_basename(filename);
 			w->pending_audio_file = g_strdup(filename);
 			w->is_light = 0;
 			w->restart_computer = 1;
@@ -1339,7 +1391,7 @@ static void handle_stop_recording(GtkMenuItem *m, struct main_window *w)
 }
 ```
 
-- [ ] **Step 4: `update_audio_mode_ui` y el indicador de fuente**
+- [ ] **Step 5: `update_audio_mode_ui` y el indicador de fuente**
 
 ```c
 static void update_audio_mode_ui(struct main_window *w)
@@ -1350,12 +1402,13 @@ static void update_audio_mode_ui(struct main_window *w)
 	gtk_widget_set_sensitive(w->device_combo_box, !file_mode);
 	gtk_widget_set_sensitive(w->gain_spin_button, !file_mode);
 	gtk_widget_set_sensitive(w->cal_button, !file_mode);
+	gtk_widget_set_sensitive(w->light_checkbox, !file_mode);
 
 	const char *txt;
 	if(recording) {
 		txt = "recording...";
-	} else if(file_mode && w->pending_audio_file) {
-		txt = w->pending_audio_file;
+	} else if(file_mode && w->audio_file_name) {
+		txt = w->audio_file_name;
 	} else if(file_mode) {
 		txt = "recording";
 	} else {
@@ -1369,9 +1422,7 @@ static void update_audio_mode_ui(struct main_window *w)
 }
 ```
 
-(Nota: para mostrar el nombre corto del archivo en el label, en `handle_open_recording` guarda también `g_strdup(basename)` en una variable para el label; se simplifica aquí usando el path. Ajusta si quieres solo el basename.)
-
-- [ ] **Step 5: Añadir widgets en `init_main_window`**
+- [ ] **Step 6: Añadir widgets en `init_main_window`**
 
 Tras el cutoff spin (interface.c:870), añade el indicador:
 
@@ -1416,7 +1467,13 @@ En `start_interface`, tras `init_main_window(w);` (interface.c:1074), inicializa
 	update_audio_mode_ui(w);
 ```
 
-- [ ] **Step 6: Compilar y verificar**
+IMPORTANTE — el checkbox «Light algorithm» ya existe en `init_main_window`
+como variable local `GtkWidget *light_checkbox`. Cámbialo a `w->light_checkbox`
+(y actualiza sus 3 usos: `gtk_menu_shell_append`, `g_signal_connect`,
+`gtk_check_menu_item_set_active`) para que `update_audio_mode_ui` pueda
+deshabilitarlo en modo archivo.
+
+- [ ] **Step 7: Compilar y verificar**
 
 ```bash
 make tg-timer-dbg 2>&1 | grep -iE "warning|error"; echo "build done"
@@ -1425,7 +1482,10 @@ make test 2>&1 | tail -5
 
 Expected: compila sin errores; `make test` (smoke test 3 s) termina sin crash.
 
-- [ ] **Step 7: Commit**
+(En `on_shutdown`, libera también `w->audio_file_name` y `w->pending_audio_file`
+si no son NULL.)
+
+- [ ] **Step 8: Commit**
 
 ```bash
 git add src/interface.c src/tg.h
