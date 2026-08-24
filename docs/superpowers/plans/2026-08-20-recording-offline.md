@@ -207,7 +207,7 @@ long wav_read_samples(struct wav_reader *r, float *out, long count);
 /* Total number of frames in the file. */
 uint64_t wav_get_length(const struct wav_reader *r);
 
-int wav_close(struct wav_reader *r);
+int wav_reader_close(struct wav_reader *r);
 
 #endif
 ```
@@ -292,7 +292,7 @@ int wav_close(struct wav_writer *w)
 }
 ```
 
-(El lector — `wav_open_read`, `wav_read_samples`, `wav_get_length`, `wav_close` — se añade en la Task 3; para que esta task compile hay que dejarlos declarados en `wav.h` pero definidos en la siguiente.)
+(El lector — `wav_open_read`, `wav_read_samples`, `wav_get_length`, `wav_reader_close` — se añade en la Task 3. Nota: el close del lector se llama `wav_reader_close` para no chocar con `wav_close(struct wav_writer*)`.)
 
 - [ ] **Step 5: Enlazar `wav.c` al test y compilar**
 
@@ -340,7 +340,7 @@ Añade al final de `main()` en `tests/test_wav.c` (antes de `remove(path)`), y c
 	CHECK(wav_read_samples(&r, out, 44100) == 44100, "read all");
 	CHECK(fabs(out[0] - buf[0]) < 1.0 / 16384.0, "sample 0 approx");
 	CHECK(fabs(out[12345] - buf[12345]) < 1.0 / 16384.0, "sample 12345 approx");
-	CHECK(wav_close(&r) == 0, "close read");
+	CHECK(wav_reader_close(&r) == 0, "close read");
 
 	/* --- stereo downmix: write stereo, read as mono average --- */
 	const char *st = "test_wav_st.wav";
@@ -359,7 +359,7 @@ Añade al final de `main()` en `tests/test_wav.c` (antes de `remove(path)`), y c
 	float m[4410];
 	CHECK(wav_read_samples(&sr, m, 4410) == 4410, "read stereo frames");
 	CHECK(fabs(m[0] - 0.5f) < 1.0 / 16384.0, "downmix avg");
-	CHECK(wav_close(&sr) == 0, "close stereo read");
+	CHECK(wav_reader_close(&sr) == 0, "close stereo read");
 	remove(st);
 ```
 
@@ -458,7 +458,7 @@ uint64_t wav_get_length(const struct wav_reader *r)
 	return r->data_bytes / (r->channels * (r->bits / 8));
 }
 
-int wav_close(struct wav_reader *r)
+int wav_reader_close(struct wav_reader *r)
 {
 	if(!r->f) return -1;
 	int rc = fclose(r->f);
@@ -673,7 +673,7 @@ int load_audio_file(const char *path)
 	fs.active = 1;
 
 	pthread_mutex_lock(&audio_mutex);
-	if(file_src.active) wav_close(&file_src.rd);
+	if(file_src.active) wav_reader_close(&file_src.rd);
 	file_src = fs;
 	info.light = false;
 	memset(pa_buffers, 0, sizeof(pa_buffers));
@@ -689,7 +689,7 @@ int close_audio_file(void)
 {
 	pthread_mutex_lock(&audio_mutex);
 	if(file_src.active) {
-		wav_close(&file_src.rd);
+		wav_reader_close(&file_src.rd);
 		free(file_src.path);
 		memset(&file_src, 0, sizeof(file_src));
 		memset(pa_buffers, 0, sizeof(pa_buffers));
@@ -859,17 +859,17 @@ int analyze_audio_file(const char *path, int bph, double la, double cal, struct 
 	if(wav_open_read(path, &rd)) return 1;
 	uint64_t nframes = wav_get_length(&rd);
 	unsigned rate = rd.rate;
-	if(nframes == 0 || rate == 0) { wav_close(&rd); return 1; }
+	if(nframes == 0 || rate == 0) { wav_reader_close(&rd); return 1; }
 
 	float *mono = malloc(nframes * sizeof(float));
-	if(!mono) { wav_close(&rd); return 1; }
+	if(!mono) { wav_reader_close(&rd); return 1; }
 	uint64_t got = 0;
 	while(got < nframes) {
 		long n = wav_read_samples(&rd, mono + got, (long)(nframes - got));
 		if(n <= 0) break;
 		got += n;
 	}
-	wav_close(&rd);
+	wav_reader_close(&rd);
 	if(got == 0) { free(mono); return 1; }
 	nframes = got;
 
