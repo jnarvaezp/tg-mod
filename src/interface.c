@@ -29,25 +29,40 @@
 int testing = 0;
 #endif
 
-/* Verbose console output: debug() also prints to stderr in release builds
- * when the app is started with the "debug" argument. */
-int verbose = 0;
+/* Verbose console output: debug() prints to stderr in release builds when
+ * the app is started with the "debug" argument (level 1 = resumen,
+ * "debug full" = level 2 = detalle). */
+int verbose_level = 0;
 
 int preset_bph[] = PRESET_BPH;
+
+static void print_debug_to(char *format, va_list args, int level)
+{
+	char buf[768];
+	vsnprintf(buf,sizeof(buf),format,args);
+#ifdef DEBUG
+	UNUSED(level);
+	fputs(buf,stderr);
+#else
+	if(verbose_level >= level) fputs(buf,stderr);
+#endif
+	session_add_raw(g_get_real_time() / 1000, buf);
+}
 
 void print_debug(char *format,...)
 {
 	va_list args;
 	va_start(args,format);
-	char buf[768];
-	vsnprintf(buf,sizeof(buf),format,args);
+	print_debug_to(format, args, 1);
 	va_end(args);
-#ifdef DEBUG
-	fputs(buf,stderr);
-#else
-	if(verbose) fputs(buf,stderr);
-#endif
-	session_add_raw(g_get_real_time() / 1000, buf);
+}
+
+void print_debug_verbose(char *format,...)
+{
+	va_list args;
+	va_start(args,format);
+	print_debug_to(format, args, 2);
+	va_end(args);
 }
 
 void error(char *format,...)
@@ -1391,6 +1406,7 @@ int main(int argc, char **argv)
 		if(!strcmp(argv[ai], "--help") || !strcmp(argv[ai], "-h")) {
 			printf("Usage: %s [options]\n", argv[0]);
 			printf("  debug            verbose console output (DSP diagnostics)\n");
+			printf("  debug full       verbose including per-detection details\n");
 #ifdef DEBUG
 			printf("  analyze <wav>    headless analysis of an audio file\n");
 			printf("  test             GUI smoke test (3 seconds)\n");
@@ -1399,10 +1415,15 @@ int main(int argc, char **argv)
 			return 0;
 		}
 
-	/* "debug": verbose console output (also in release builds). */
+	/* "debug": verbose console output (also in release builds).
+	 * Level 1 = resumen por ciclo; "debug full" = level 2 = detalle. */
 	if(argc > 1 && !strcmp("debug", argv[1])) {
-		verbose = 1;
+		verbose_level = 1;
 		argv++; argc--;
+		if(argc > 1 && !strcmp("full", argv[1])) {
+			verbose_level = 2;
+			argv++; argc--;
+		}
 	}
 
 #ifdef DEBUG

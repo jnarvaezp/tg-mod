@@ -68,9 +68,11 @@
 
 #define PRESET_BPH { 12000, 14400, 17280, 18000, 19800, 21600, 25200, 28800, 36000, 43200, 72000, 0 };
 
-/* Siempre activo: vierte al anillo de sesión (raw) en todos los builds y a
- * stderr solo en DEBUG. */
+/* Siempre activo: vierte al anillo de sesión (raw) en todos los builds.
+ * A stderr: en builds DEBUG siempre; en release según verbose_level
+ * (debug() >= 1, debugv() >= 2). */
 #define debug(...) print_debug(__VA_ARGS__)
+#define debugv(...) print_debug_verbose(__VA_ARGS__)
 
 #define UNUSED(X) (void)(X)
 
@@ -339,14 +341,16 @@ struct main_window {
 
 extern int preset_bph[];
 
-/* Verbose console output (debug() to stderr) in all builds. */
-extern int verbose;
+/* Verbose console output (debug() to stderr) in all builds.
+ * 0 = quiet, 1 = resumen (debug), 2 = detalle (debugv). */
+extern int verbose_level;
 
 #ifdef DEBUG
 extern int testing;
 #endif
 
 void print_debug(char *format,...);
+void print_debug_verbose(char *format,...);
 void error(char *format,...);
 
 /* config.c */

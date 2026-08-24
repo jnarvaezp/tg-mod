@@ -48,7 +48,8 @@ Uso: menú Command → «Open recording…» para analizar un WAV sin micrófono
   (timestamp, signal, bph, rate, be, amp, period, sigma) y el texto de debug
   crudo. Funciona en builds release y debug.
 - Argumento `tg-timer debug`: salida verbosa de consola (DSP) en cualquier
-  build.
+  build; `tg-timer debug full` añade el detalle por detección (`max/med/cnt`).
+  Niveles: 0 = silencioso, 1 = resumen por ciclo, 2 = detalle.
 
 ## Fase 2 — Tests de regresión DSP
 

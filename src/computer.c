@@ -120,7 +120,7 @@ static void compute_events_cal(struct computer *c)
 			continue;
 		if(++s->events_wp == s->events_count) s->events_wp = 0;
 		s->events[s->events_wp] = d->events[i];
-		debug("event at %llu\n",s->events[s->events_wp]);
+		debugv("event at %llu\n",s->events[s->events_wp]);
 	}
 	s->events_from = get_timestamp(s->is_light);
 }
@@ -136,7 +136,7 @@ static void compute_events(struct computer *c)
 			if(p->events[i] > last + floor(p->period / 4)) {
 				if(++s->events_wp == s->events_count) s->events_wp = 0;
 				s->events[s->events_wp] = p->events[i];
-				debug("event at %llu\n",s->events[s->events_wp]);
+				debugv("event at %llu\n",s->events[s->events_wp]);
 			}
 		s->events_from = p->timestamp - ceil(p->period);
 	} else {

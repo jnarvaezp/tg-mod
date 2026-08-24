@@ -366,7 +366,7 @@ static int peak_detector(float *buff, int a, int b)
 		if(buff[i] < med)
 			down = 1;
 	}
-	debug("max = %f med = %f cnt = %d\n",max,med,cnt);
+	debugv("max = %f med = %f cnt = %d\n",max,med,cnt);
 	if(cnt > 20)
 		return -1;
 	return i_max;
@@ -380,7 +380,7 @@ static double estimate_period(struct processing_buffers *p)
 			fmax(p->sample_rate / 12, first_estimate - p->sample_rate / 12),
 			first_estimate + p->sample_rate / 12);
 	if(first_estimate == -1) {
-		debug("no candidate period\n");
+		debugv("no candidate period\n");
 		return -1;
 	}
 	int estimate = first_estimate;
@@ -400,12 +400,12 @@ static double estimate_period(struct processing_buffers *p)
 	double max = vmax(p->samples_sc, a, b+1, NULL);
 	if(max < 0.2 * p->samples_sc[estimate]) {
 		if(first_estimate * 2 / factor < p->sample_rate ) {
-			debug("double triggered\n");
+			debugv("double triggered\n");
 			return peak_detector(p->samples_sc,
 					first_estimate * 2 / factor - p->sample_rate / 50,
 					first_estimate * 2 / factor + p->sample_rate / 50);
 		} else {
-			debug("period rejected (immense beat error?)\n");
+			debugv("period rejected (immense beat error?)\n");
 			return -1;
 		}
 	} else return estimate;
@@ -421,7 +421,7 @@ static int compute_period(struct processing_buffers *b, int bph)
 	else
 		estimate = estimate_period(b);
 	if(estimate == -1) {
-		debug("failed to estimate period\n");
+		debugv("failed to estimate period\n");
 		return 1;
 	}
 	double delta = b->sample_rate * 0.02;
@@ -437,15 +437,15 @@ static int compute_period(struct processing_buffers *b, int bph)
 			break;
 		new_estimate = peak_detector(b->samples_sc,inf,sup);
 		if(new_estimate == -1) {
-			debug("cycle = %d peak not found\n",cycle);
+			debugv("cycle = %d peak not found\n",cycle);
 			return 1;
 		}
 		new_estimate /= cycle;
 		if(new_estimate < estimate - delta || new_estimate > estimate + delta) {
-			debug("cycle = %d new_estimate = %f invalid peak\n",cycle,new_estimate/b->sample_rate);
+			debugv("cycle = %d new_estimate = %f invalid peak\n",cycle,new_estimate/b->sample_rate);
 			return 1;
 		} else
-			debug("cycle = %d new_estimate = %f\n",cycle,new_estimate/b->sample_rate);
+			debugv("cycle = %d new_estimate = %f\n",cycle,new_estimate/b->sample_rate);
 		if(inf > b->sample_count / 3) {
 			sum += new_estimate;
 			sq_sum += new_estimate * new_estimate;
