@@ -28,7 +28,9 @@ tg-timer-vlg
 /test_session_out/
 /tests/test_dsp
 /tests/test_stats
+/tests/test_report
 /test_dsp_out/
+/test_report_out/
 /tests/fixtures/*.wav
 
 # autotools
