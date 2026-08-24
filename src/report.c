@@ -68,8 +68,8 @@ static void pdf_text(cairo_t *cr, double x, double y, const char *s)
 int report_write_pdf(const char *path, const struct report_row *rows, int n)
 {
 	cairo_surface_t *sfc = cairo_pdf_surface_create(path, 595, 842);
-	if(cairo_surface_status(sfc) != CAIRO_STATUS_SUCCESS) {
-		cairo_surface_destroy(sfc);
+	if(!sfc || cairo_surface_status(sfc) != CAIRO_STATUS_SUCCESS) {
+		if(sfc) cairo_surface_destroy(sfc);
 		return 1;
 	}
 	cairo_t *cr = cairo_create(sfc);
