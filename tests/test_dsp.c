@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <dirent.h>
 #include <sys/stat.h>
 #include "tg.h"
 #include "wav.h"
@@ -133,6 +134,36 @@ int main(void)
 	test_clip(21600, 4.0, 14.0, 1.0, 0.8, 2.0, 0.0, 1, 2.0, 1.0, "be2");
 	test_clip(21600, 4.0, 14.0, 1.0, 0.8, 5.0, 0.0, 1, 2.0, 1.0, "be5");
 	test_amp();
+
+	/* Fixtures reales opcionales: si tests/fixtures/*.wav existen, deben al
+	 * menos detectar señal (aserción laxa, el valor exacto varía por grabación). */
+	{
+		DIR *d = opendir("tests/fixtures");
+		if(d) {
+			struct dirent *e;
+			int nfix = 0;
+			while((e = readdir(d))) {
+				size_t l = strlen(e->d_name);
+				if(l > 4 && !strcmp(e->d_name + l - 4, ".wav")) {
+					char path[1024];
+					snprintf(path, sizeof(path), "tests/fixtures/%s", e->d_name);
+					struct offline_result r;
+					if(!analyze_audio_file(path, 0, DEFAULT_LA, 0, &r)) {
+						nfix++;
+						CHECK(r.signal == 1, "fixture detects signal");
+						if(r.signal)
+							printf("fixture %-24s signal=1 bph=%d rate=%+.2f be=%.2f amp=%.1f\n",
+							       e->d_name, r.guessed_bph, r.rate, r.be, r.amp);
+						else
+							printf("fixture %-24s signal=0\n", e->d_name);
+					}
+				}
+			}
+			closedir(d);
+			if(nfix == 0)
+				printf("no fixtures: tests/fixtures/*.wav (opcional)\n");
+		}
+	}
 
 	rmdir("test_dsp_out");
 	if(failures) { fprintf(stderr, "%d failure(s)\n", failures); return 1; }

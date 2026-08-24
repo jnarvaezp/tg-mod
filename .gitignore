@@ -28,6 +28,7 @@ tg-timer-vlg
 /test_session_out/
 /tests/test_dsp
 /test_dsp_out/
+/tests/fixtures/*.wav
 
 # autotools
 Makefile
