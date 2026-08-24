@@ -483,10 +483,9 @@ static int read_one_frame(struct wav_reader *r, float *out)
 			if(fread(&b, 1, 1, r->f) != 1) return -1;
 			v = ((int)b - 128) / 128.0;
 		} else if(r->bits == 16) {
-			unsigned lo, hi;
-			if(read_le16(r->f, &lo) || read_le16(r->f, &hi)) return -1;
-			int16_t s = (int16_t)(lo | (hi << 8));
-			v = s / 32768.0;
+			unsigned s;
+			if(read_le16(r->f, &s)) return -1;
+			v = (int16_t)s / 32768.0;
 		} else if(r->bits == 24) {
 			unsigned char b[3];
 			if(fread(b, 1, 3, r->f) != 3) return -1;
