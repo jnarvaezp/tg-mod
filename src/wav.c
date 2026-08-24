@@ -42,20 +42,26 @@ int wav_open_write(const char *path, unsigned rate, unsigned channels, unsigned 
 	w->bits = bits;
 	w->ok = 1;
 
-	fwrite("RIFF", 1, 4, w->f);
-	write_le32(w->f, 0);            /* patched in wav_close */
-	fwrite("WAVE", 1, 4, w->f);
-	fwrite("fmt ", 1, 4, w->f);
-	write_le32(w->f, 16);
-	write_le16(w->f, 1);            /* PCM */
-	write_le16(w->f, channels);
-	write_le32(w->f, rate);
-	write_le32(w->f, rate * channels * (bits / 8));
-	write_le16(w->f, channels * (bits / 8));
-	write_le16(w->f, bits);
-	fwrite("data", 1, 4, w->f);
-	write_le32(w->f, 0);            /* patched in wav_close */
+	if(fwrite("RIFF", 1, 4, w->f) != 4) goto fail;
+	if(write_le32(w->f, 0)) goto fail;      /* patched in wav_close */
+	if(fwrite("WAVE", 1, 4, w->f) != 4) goto fail;
+	if(fwrite("fmt ", 1, 4, w->f) != 4) goto fail;
+	if(write_le32(w->f, 16)) goto fail;
+	if(write_le16(w->f, 1)) goto fail;      /* PCM */
+	if(write_le16(w->f, channels)) goto fail;
+	if(write_le32(w->f, rate)) goto fail;
+	if(write_le32(w->f, rate * channels * (bits / 8))) goto fail;
+	if(write_le16(w->f, channels * (bits / 8))) goto fail;
+	if(write_le16(w->f, bits)) goto fail;
+	if(fwrite("data", 1, 4, w->f) != 4) goto fail;
+	if(write_le32(w->f, 0)) goto fail;      /* patched in wav_close */
 	return 0;
+
+fail:
+	fclose(w->f);
+	w->f = NULL;
+	w->ok = 0;
+	return -1;
 }
 
 int wav_write_samples(struct wav_writer *w, const float *samples, int count)
@@ -77,11 +83,22 @@ int wav_write_samples(struct wav_writer *w, const float *samples, int count)
 int wav_close(struct wav_writer *w)
 {
 	if(!w->ok) return -1;
-	if(fseek(w->f, 4, SEEK_SET)) { fclose(w->f); return -1; }
+	if(fseek(w->f, 4, SEEK_SET)) {
+		fclose(w->f);
+		w->f = NULL;
+		w->ok = 0;
+		return -1;
+	}
 	write_le32(w->f, 36 + w->data_bytes);
-	if(fseek(w->f, 40, SEEK_SET)) { fclose(w->f); return -1; }
+	if(fseek(w->f, 40, SEEK_SET)) {
+		fclose(w->f);
+		w->f = NULL;
+		w->ok = 0;
+		return -1;
+	}
 	write_le32(w->f, w->data_bytes);
 	int rc = fclose(w->f);
+	w->f = NULL;
 	w->ok = 0;
 	return rc ? -1 : 0;
 }
