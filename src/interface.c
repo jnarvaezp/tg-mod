@@ -17,6 +17,7 @@
 */
 
 #include "tg.h"
+#include "session.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -33,8 +34,13 @@ void print_debug(char *format,...)
 {
 	va_list args;
 	va_start(args,format);
-	vfprintf(stderr,format,args);
+	char buf[768];
+	vsnprintf(buf,sizeof(buf),format,args);
 	va_end(args);
+#ifdef DEBUG
+	fputs(buf,stderr);
+#endif
+	session_add_raw(g_get_real_time() / 1000, buf);
 }
 
 void error(char *format,...)
@@ -1178,6 +1184,25 @@ guint refresh(struct main_window *w)
 		gtk_widget_queue_draw(w->notebook);
 	}
 	gtk_widget_set_sensitive(w->snapshot_button, photogenic);
+
+	struct snapshot *sn = w->active_snapshot;
+	struct session_cycle sc;
+	memset(&sc, 0, sizeof(sc));
+	sc.wall_ms = g_get_real_time() / 1000;
+	sc.audio = get_timestamp(sn->is_light);
+	sc.signal = sn->signal;
+	sc.guessed_bph = sn->guessed_bph;
+	sc.rate = sn->rate;
+	sc.be = sn->be;
+	sc.amp = sn->amp;
+	sc.calibrate = sn->calibrate;
+	sc.cal_state = sn->cal_state;
+	if(sn->pb) {
+		sc.period = sn->pb->period / sn->pb->sample_rate;
+		sc.sigma = sn->pb->sigma / sn->pb->sample_rate;
+	}
+	session_add_cycle(&sc);
+
 	return FALSE;
 }
 
@@ -1195,6 +1220,8 @@ static void start_interface(GApplication* app, void *p)
 
 	struct main_window *w = malloc(sizeof(struct main_window));
 	memset(w, 0, sizeof(struct main_window));
+
+	session_init();
 
 	w->app = GTK_APPLICATION(app);
 

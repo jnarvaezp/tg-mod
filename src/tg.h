@@ -68,11 +68,9 @@
 
 #define PRESET_BPH { 12000, 14400, 17280, 18000, 19800, 21600, 25200, 28800, 36000, 43200, 72000, 0 };
 
-#ifdef DEBUG
+/* Siempre activo: vierte al anillo de sesión (raw) en todos los builds y a
+ * stderr solo en DEBUG. */
 #define debug(...) print_debug(__VA_ARGS__)
-#else
-#define debug(...) {}
-#endif
 
 #define UNUSED(X) (void)(X)
 
