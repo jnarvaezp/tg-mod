@@ -20,6 +20,10 @@
 #include "wav.h"
 #include <string.h>
 
+/* Cap on loaded audio to bound memory (4 bytes/frame). ~200M frames
+ * ≈ 75 min at 44.1 kHz ≈ 800 MB. */
+#define OFFLINE_MAX_FRAMES 200000000ull
+
 static int guess_bph(double period)
 {
 	double bph = 7200 / period;
@@ -39,6 +43,7 @@ int analyze_audio_file(const char *path, int bph, double la, double cal, struct 
 	uint64_t nframes = wav_get_length(&rd);
 	unsigned rate = rd.rate;
 	if(nframes == 0 || rate == 0) { wav_reader_close(&rd); return 1; }
+	if(nframes > OFFLINE_MAX_FRAMES) { wav_reader_close(&rd); return 1; }
 
 	float *mono = malloc(nframes * sizeof(float));
 	if(!mono) { wav_reader_close(&rd); return 1; }
