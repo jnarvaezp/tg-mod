@@ -367,17 +367,19 @@ static void populate_devices(struct main_window *w)
 	g_signal_handlers_block_by_func(w->device_combo_box, handle_device_change, w);
 	gtk_combo_box_text_remove_all(GTK_COMBO_BOX_TEXT(w->device_combo_box));
 	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->device_combo_box), "System default");
+	const char *match = match_input_device_name(w->input_device);
 	int dev_count = get_input_device_count();
 	int di, active = 0;
 	for(di = 0; di < dev_count; di++) {
 		const char *dname = get_input_device_name(di);
 		if(!dname) continue;
 		gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->device_combo_box), dname);
-		if(w->input_device && !strcmp(w->input_device, dname))
+		if(match && dname == match)
 			active = di + 1;
 	}
-	g_signal_handlers_unblock_by_func(w->device_combo_box, handle_device_change, w);
+	/* set_active mientras el handler está bloqueado: no dispara restart */
 	gtk_combo_box_set_active(GTK_COMBO_BOX(w->device_combo_box), active);
+	g_signal_handlers_unblock_by_func(w->device_combo_box, handle_device_change, w);
 }
 
 static void handle_gain_change(GtkSpinButton *b, struct main_window *w)
@@ -527,6 +529,7 @@ static void update_audio_mode_ui(struct main_window *w)
 	int recording = get_recording();
 
 	gtk_widget_set_sensitive(w->device_combo_box, !file_mode);
+	gtk_widget_set_sensitive(w->dev_refresh, !file_mode);
 	gtk_widget_set_sensitive(w->gain_spin_button, !file_mode);
 	gtk_widget_set_sensitive(w->cal_button, !file_mode);
 	gtk_widget_set_sensitive(w->light_checkbox, !file_mode && !recording);
@@ -1050,9 +1053,9 @@ static void init_main_window(struct main_window *w)
 	populate_devices(w);
 	g_signal_connect(w->device_combo_box, "changed", G_CALLBACK(handle_device_change), w);
 
-	GtkWidget *dev_refresh = gtk_button_new_from_icon_name("view-refresh-symbolic", GTK_ICON_SIZE_MENU);
-	gtk_box_pack_start(GTK_BOX(hbox), dev_refresh, FALSE, FALSE, 0);
-	g_signal_connect_swapped(dev_refresh, "clicked", G_CALLBACK(populate_devices), w);
+	w->dev_refresh = gtk_button_new_from_icon_name("view-refresh-symbolic", GTK_ICON_SIZE_MENU);
+	gtk_box_pack_start(GTK_BOX(hbox), w->dev_refresh, FALSE, FALSE, 0);
+	g_signal_connect_swapped(w->dev_refresh, "clicked", G_CALLBACK(populate_devices), w);
 
 	// Gain label + spin button
 	label = gtk_label_new("gain");

@@ -183,6 +183,7 @@ extern int filter_cutoff;
 int get_input_device_count(void);
 const char *get_input_device_name(int index);
 int find_input_device_by_name(const char *name);
+const char *match_input_device_name(const char *preferred);
 
 /* computer.c */
 struct snapshot {
@@ -283,6 +284,7 @@ struct main_window {
 	GtkWidget *la_spin_button;
 	GtkWidget *cal_spin_button;
 	GtkWidget *device_combo_box;
+	GtkWidget *dev_refresh;
 	GtkWidget *gain_spin_button;
 	GtkWidget *cutoff_spin_button;
 	GtkWidget *snapshot_button;

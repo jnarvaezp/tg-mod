@@ -204,6 +204,21 @@ int find_input_device_by_name(const char *name)
 	return paNoDevice;
 }
 
+/* Devuelve el nombre real del dispositivo que coincide (ignorando el sufijo
+ * "(hw:X,Y)") con el preferido guardado, o NULL si no hay ninguno. */
+const char *match_input_device_name(const char *preferred)
+{
+	if(!preferred || !*preferred) return NULL;
+	int i, n = Pa_GetDeviceCount();
+	for(i = 0; i < n; i++) {
+		const PaDeviceInfo *di = Pa_GetDeviceInfo(i);
+		if(!di || di->maxInputChannels <= 0) continue;
+		if(di->name && device_name_matches(di->name, preferred))
+			return di->name;
+	}
+	return NULL;
+}
+
 int start_portaudio(int *nominal_sample_rate, double *real_sample_rate, const char *preferred)
 {
 	PaStream *stream;
