@@ -43,20 +43,32 @@ void stats_add(const struct stats_point *p)
 	pthread_mutex_unlock(&st.m);
 }
 
-int stats_summary(uint64_t window_ms, struct stats_summary *out)
+const char *position_name(int pos)
+{
+	static const char *names[POSITION_CR + 1] = {
+		"none", "dial up", "dial down", "crown up", "crown down",
+		"crown left", "crown right"
+	};
+	return pos >= POSITION_NONE && pos <= POSITION_CR ? names[pos] : "?";
+}
+
+static int stats_summary_filter(int pos, uint64_t window_ms, struct stats_summary *out)
 {
 	pthread_mutex_lock(&st.m);
 	int start = st.n < STATS_CAP ? 0 : st.wp;
 	uint64_t newest = st.n ? st.pts[(start + st.n - 1) % STATS_CAP].wall_ms : 0;
-	double sum = 0, sq = 0, mn = 0, mx = 0;
+	double sum = 0, sq = 0, mn = 0, mx = 0, sb = 0, sa = 0;
 	int cnt = 0, i;
 	for(i = 0; i < st.n; i++) {
 		const struct stats_point *p = &st.pts[(start + i) % STATS_CAP];
+		if(pos != POSITION_NONE && p->position != pos) continue;
 		if(window_ms && p->wall_ms + window_ms < newest) continue;
 		if(!cnt || p->rate < mn) mn = p->rate;
 		if(!cnt || p->rate > mx) mx = p->rate;
 		sum += p->rate;
 		sq += p->rate * p->rate;
+		sb += p->be;
+		sa += p->amp;
 		cnt++;
 	}
 	if(out) {
@@ -66,11 +78,24 @@ int stats_summary(uint64_t window_ms, struct stats_summary *out)
 			out->sigma = cnt > 1 ? sqrt((sq - cnt * out->mean * out->mean) / (cnt - 1)) : 0;
 			out->min = mn;
 			out->max = mx;
+			out->mean_be = sb / cnt;
+			out->mean_amp = sa / cnt;
 		} else
-			out->mean = out->sigma = out->min = out->max = 0;
+			out->mean = out->sigma = out->min = out->max =
+				out->mean_be = out->mean_amp = 0;
 	}
 	pthread_mutex_unlock(&st.m);
 	return cnt;
+}
+
+int stats_summary(uint64_t window_ms, struct stats_summary *out)
+{
+	return stats_summary_filter(POSITION_NONE, window_ms, out);
+}
+
+int stats_summary_pos(int pos, uint64_t window_ms, struct stats_summary *out)
+{
+	return stats_summary_filter(pos, window_ms, out);
 }
 
 int stats_get_range(uint64_t from_ms, struct stats_point *out, int max)

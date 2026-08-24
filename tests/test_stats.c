@@ -36,6 +36,21 @@ int main(void)
 	int n = stats_get_range(1003, out, 8);
 	CHECK(n == 2 && out[0].rate == 3.0 && out[1].rate == 4.0, "get_range");
 
+	/* Posiciones: etiquetar puntos y resumir por posición. */
+	p.wall_ms = 2000; p.rate = 1.0; p.position = POSITION_DU; stats_add(&p);
+	p.wall_ms = 2001; p.rate = 3.0; p.position = POSITION_DU; stats_add(&p);
+	p.wall_ms = 2002; p.rate = 5.0; p.position = POSITION_DD; stats_add(&p);
+	CHECK(stats_summary_pos(POSITION_DU, 0, &s) == 2, "pos count");
+	CHECK(fabs(s.mean - 2.0) < 1e-9, "pos mean");
+	CHECK(fabs(s.min - 1.0) < 1e-9 && fabs(s.max - 3.0) < 1e-9, "pos min/max");
+	CHECK(stats_summary_pos(POSITION_DD, 0, &s) == 1, "dd count");
+	CHECK(fabs(s.max - 5.0) < 1e-9, "dd max");
+	CHECK(stats_summary_pos(POSITION_CR, 0, &s) == 0, "cr count");
+
+	/* mean_be / mean_amp en el resumen global */
+	CHECK(stats_summary(0, &s) > 0, "summary ok");
+	(void)s.mean_be; (void)s.mean_amp;
+
 	stats_clear();
 	CHECK(stats_summary(0, &s) == 0, "cleared");
 
