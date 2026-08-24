@@ -427,7 +427,7 @@ int pause_portaudio(void)
 {
 	if(pa_stream) {
 		PaError err = Pa_StopStream(pa_stream);
-		if(err != paNoError) {
+		if(err != paNoError && err != paStreamIsStopped) {
 			error("Error pausing audio: %s", Pa_GetErrorText(err));
 			return 1;
 		}

@@ -147,6 +147,7 @@ static void on_shutdown(GApplication *app, void *p)
 	struct main_window *w = g_object_get_data(G_OBJECT(app), "main-window");
 	if(w) {
 		save_config(w);
+		if(get_recording()) stop_recording();
 		if(w->computer) computer_destroy(w->computer);
 		if(w->active_panel) op_destroy(w->active_panel);
 		close_config(w);
@@ -460,7 +461,7 @@ static void update_audio_mode_ui(struct main_window *w)
 	gtk_widget_set_sensitive(w->device_combo_box, !file_mode);
 	gtk_widget_set_sensitive(w->gain_spin_button, !file_mode);
 	gtk_widget_set_sensitive(w->cal_button, !file_mode);
-	gtk_widget_set_sensitive(w->light_checkbox, !file_mode);
+	gtk_widget_set_sensitive(w->light_checkbox, !file_mode && !recording);
 
 	const char *txt;
 	if(recording) {
