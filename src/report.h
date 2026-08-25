@@ -19,6 +19,11 @@
 #ifndef TG_REPORT_H
 #define TG_REPORT_H
 
+#include "stats.h"
+
+/* none + 6 posiciones + total */
+#define REPORT_MAX_ROWS (POSITION_CR + 2)
+
 struct report_row {
 	int position;
 	int n;

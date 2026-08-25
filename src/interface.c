@@ -544,8 +544,8 @@ static void handle_export_report(GtkMenuItem *m, struct main_window *w)
 	char base[64];
 	time_t t = time(NULL);
 	strftime(base, sizeof(base), "tg-report-%Y%m%d-%H%M%S", localtime(&t));
-	struct report_row rows[POSITION_CR];
-	int n = report_summary(rows, POSITION_CR);
+	struct report_row rows[REPORT_MAX_ROWS];
+	int n = report_summary(rows, REPORT_MAX_ROWS);
 	int err = 0;
 	char path[1024];
 	snprintf(path, sizeof(path), "%s/%s.csv", dir, base);
