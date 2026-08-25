@@ -26,13 +26,13 @@ Premisas de trabajo: ver `docs/DEVELOPMENT.md`.
   (docs/USAGE.md / docs/USAGE.en.md), spec del registro de relojes
   (docs/superpowers/specs/2026-08-24-watch-db-design.md).
 
-## Fix pendiente — Informe vacío
+## Fix pendiente — Informe vacío (hecho)
 
-**Rama:** `feature/report-fix`
+**Rama:** `feature/report-fix` — **Estado:** completada.
 
-El informe exportado excluía los ciclos sin posición etiquetada
-(`report_summary` solo iteraba posiciones 1–6). Fix: fila "none" (ciclos sin
-etiquetar) + fila "Total", y "no data" si el anillo está vacío.
+El informe exportado excluía los ciclos sin posición etiquetada. Ahora
+incluye la fila "none" (ciclos sin etiquetar) y la fila "Total", y escribe
+"no data" si no hay mediciones.
 
 ## Fase 5.5a — Registro de relojes (watch-db)
 
