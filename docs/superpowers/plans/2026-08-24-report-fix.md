@@ -26,9 +26,12 @@
 - [ ] **Step 1: Ampliar el test** (en `tests/test_stats.c`, dentro del bloque de posiciones existente, tras el check `cr count`):
 
 ```c
-	/* Ciclos sin etiquetar: resumen separado. */
+	/* Ciclos sin etiquetar: resumen separado. Nota: los 5 puntos iniciales
+	 * del test tienen position == POSITION_NONE (struct inicializado a 0),
+	 * asi que el resumen untagged incluye todo; usa ventana de 1 ms para
+	 * aislar el punto nuevo (wall_ms=3000). */
 	p.wall_ms = 3000; p.rate = 7.0; p.position = POSITION_NONE; stats_add(&p);
-	CHECK(stats_summary_untagged(0, &s) == 1, "untagged count");
+	CHECK(stats_summary_untagged(1, &s) == 1, "untagged count");
 	CHECK(fabs(s.mean - 7.0) < 1e-9, "untagged mean");
 	CHECK(stats_summary(0, &s) > 0, "all still works");
 ```
