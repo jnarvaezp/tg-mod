@@ -10,13 +10,22 @@ tg \- a program for timing mechanincal watches
 .SH DESCRIPTION
 Tg (tg-timer) is a program to evaluate the performance of mechanical watch
 movements. Tg works with the noise produced by a watch mechanism, and it
-produces real-time readings of the rate (or accuracy) and various other
-operational parameters.
+produces real-time readings of the rate (or accuracy), beat error, amplitude
+and beat rate (BPH), with a paperstrip timegraph, waveforms, a live
+spectrum, statistics and a per-position report.
 .SH ARGUMENTS
 The optional \fBdebug\fP argument enables verbose console output (the DSP
 diagnostics) in all builds, including the release binary; \fBdebug full\fP
 adds the per-detection details. \fB--help\fP (or \fB-h\fP) prints a usage
 summary and exits.
+.SH STATISTICS AND TREND
+The panel shows a live rate-trend chart (last ~5 minutes) with mean,
+standard deviation, min and max of the rate in s/d, updated every
+computation cycle.
+.SH POSITIONS AND REPORT
+Select the watch position with the \fBpos\fP selector to tag the live
+measurements. The \fBExport report...\fP menu item writes a per-position
+summary to \fB~/tg-logs/tg-report-<timestamp>.{csv,pdf}\fP.
 .SH SESSION LOG
 The \fBSave session log\fP menu item writes the computation cycles to
 \fB~/tg-logs/tg-session-<timestamp>.{json,csv,raw}\fP for debugging.
@@ -25,9 +34,14 @@ The gain control ranges from 0.1 (attenuation) to 100 (amplification). A
 live level bar shows the input peak; a \fBCLIP\fP indicator appears when the
 signal saturates. The saved input device is matched ignoring the
 \fB(hw:X,Y)\fP suffix, and a refresh button next to the mic selector
-re-enumerates devices. 
+re-enumerates devices.
 .SH RECORDING AND OFFLINE ANALYSIS
 Record the microphone to a WAV with the \fBRecord to file...\fP menu item.
 Open a WAV with \fBOpen recording...\fP to analyze it without live audio.
 The debug build also supports \fBtg-timer-dbg analyze file.wav\fP for
 headless analysis.
+.SH FILES
+\fB~/tg-logs/\fP contains session logs and exported reports.
+.SH SEE ALSO
+Full guide: \fB/usr/share/doc/tg/USAGE.md\fP (Spanish) and
+\fB/usr/share/doc/tg/USAGE.en.md\fP (English).

@@ -52,3 +52,27 @@ git branch -d feature/<nombre>
   (`git@github.com:jnarvaezp/tg-mod.git`) — ahí se hace el push.
 - `upstream` apunta al repositorio público de tg
   (`git@github.com:vacaboja/tg.git`) — de ahí se hace el pull/fetch.
+
+## Mapa de módulos (src/)
+
+| Módulo | Responsabilidad | Dependencias |
+|---|---|---|
+| `algo.c` | DSP: filtros, autocorrelación, periodo, rate/be/amp, calibración | FFTW |
+| `audio.c` | Captura PortAudio, ring buffer, file source (offline), grabación WAV, nivel | PortAudio, wav |
+| `computer.c` | Hilo de cómputo, snapshots, eventos | — |
+| `interface.c` | UI GTK, menús, modos, CLI (`debug`, `--help`, `analyze`, `test`) | GTK |
+| `output_panel.c` | Paneles Cairo: lectura, paperstrip, formas de onda, espectro, tendencia | Cairo |
+| `config.c` | Configuración INI | GLib |
+| `serializer.c` | Formato `.tgj` | — |
+| `offline.c` | Análisis headless (`analyze_audio_file`) | algo, wav |
+| `wav.c` | Lector/escritor WAV (sin dependencias) | — |
+| `session.c` | Session log: anillo de ciclos + raw (JSON/CSV/raw) | pthread |
+| `stats.c` | Anillo de estadísticas en vivo + resumen por posición | pthread |
+| `report.c` | Informe por posición (CSV + PDF Cairo) | stats, cairo |
+
+## Guías
+
+- `docs/USAGE.md` — guía de uso completa (teoría e interpretación de valores).
+- `docs/USAGE.en.md` — misma guía en inglés.
+- `docs/superpowers/plans/` — planes de implementación por feature.
+- `docs/superpowers/specs/` — especificaciones de diseño.

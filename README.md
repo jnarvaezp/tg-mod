@@ -1,15 +1,91 @@
-# A program for timing mechanical watches [![Build Status](https://travis-ci.org/vacaboja/tg.svg?branch=master)](https://travis-ci.org/vacaboja/tg)
+# tg — A program for timing mechanical watches
 
-The program tg is distributed under the GNU GPL license version 2. The full
-source code of tg is available at
-[https://github.com/vacaboja/tg](https://github.com/vacaboja/tg) and its
-copyright belongs to the respective contributors.
+[![Build Status](https://travis-ci.org/vacaboja/tg.svg?branch=master)](https://travis-ci.org/vacaboja/tg)
 
-Tg is in development, and there is still no manual. Some info can be found
-in this
+**Tg** is a timegrapher for mechanical watches: it listens to the noise of a
+watch mechanism with a microphone and produces real-time readings of the
+**rate** (accuracy), **beat error**, **amplitude** and **beat rate (BPH)**,
+with a paperstrip timegraph, waveforms, a live spectrum, statistics and a
+per-position report.
+
+## Credits and license
+
+The program is distributed under the GNU GPL license version 2 (see
+[LICENSE](LICENSE)). The full source code and its copyright belong to the
+respective contributors.
+
+- **Original project:** [vacaboja/tg](https://github.com/vacaboja/tg), by
+  **Marcello Mamino** and contributors. This fork keeps all the original
+  code and credits intact.
+- **Fork maintained by:** Jonathan Narvaez (jnarvaezp) —
+  [github.com/jnarvaezp/tg-mod](https://github.com/jnarvaezp/tg-mod).
+
+Some original information can be found in this
 [thread at WUS](http://forums.watchuseek.com/f6/open-source-timing-software-2542874.html),
 in particular the calibration procedure is described at
 [this post](http://forums.watchuseek.com/f6/open-source-timing-software-2542874-post29970370.html).
+
+## Documentation
+
+- **docs/USAGE.md** — full guide (Spanish): theory of the measured values,
+  how to interpret the results, and how to set up the microphone.
+- **docs/USAGE.en.md** — same guide in English.
+- **README.es.md** — this readme in Spanish.
+- **docs/ROADMAP.md** — development roadmap of the fork.
+- **docs/tg-timer.1** — man page.
+
+## Features
+
+### Original
+
+- Real-time measurements: rate (s/d), beat error (ms), amplitude (deg), BPH.
+- Paperstrip timegraph, tic/toc and period waveforms, automatic calibration
+  (~15 min), snapshots in tabs, `.tgj` save/load, INI configuration.
+
+### Added in this fork
+
+- **Recording and offline analysis**: record the mic to a WAV
+  (*Record to file...*) and analyze existing WAVs without live audio
+  (*Open recording...*); headless `tg-timer-dbg analyze file.wav`.
+- **Session log**: *Save session log* writes the computation cycles to
+  `~/tg-logs/tg-session-<timestamp>.{json,csv,raw}`; `tg-timer debug` /
+  `debug full` enable verbose console output in any build.
+- **Signal quality**: gain control 0.1–100 (attenuation and amplification),
+  live level meter with **CLIP** indicator, robust input device selection
+  (ignores the ALSA `(hw:X,Y)` suffix, refresh button, visible fallback
+  warning).
+- **Live statistics**: rate-trend chart (last ~5 minutes) with mean, standard
+  deviation, min and max in s/d.
+- **Positions and report**: "pos" selector to tag measurements (dial up/down,
+  crown up/down/left/right); *Export report...* writes a per-position summary
+  to `~/tg-logs/tg-report-<timestamp>.{csv,pdf}`.
+- **Testing suite**: `make check` (WAV module, session log, DSP regression
+  with synthetic clips, stats and report modules).
+
+## Quick start
+
+1. Run `tg-timer`.
+2. Select your input device in the **mic** selector (use the ↻ button to
+   refresh the list after plugging a USB microphone).
+3. Place the watch on the timegrapher microphone (the case or crown against
+   the sensor cavity) and make sure the watch is wound.
+4. Adjust **gain** so the level bar shows a peak around 0.6–0.9 without the
+   **CLIP** indicator appearing.
+5. Select the **BPH** (or "guess"), the **lift angle** and the position
+   (**pos** selector) for the measurement.
+6. Read the results: rate (s/d), beat error (ms), amplitude (deg). See
+   docs/USAGE.md for how to interpret them.
+
+## Command line
+
+| Command | Effect |
+|---|---|
+| `tg-timer` | GUI |
+| `tg-timer debug` | GUI + per-cycle console summary |
+| `tg-timer debug full` | GUI + full DSP diagnostics |
+| `tg-timer -h` / `--help` | Usage |
+| `tg-timer-dbg analyze <file.wav>` | Headless analysis (debug build) |
+| `tg-timer-dbg test` | 3 s GUI smoke test (debug build) |
 
 ## Install instructions
 
@@ -35,7 +111,7 @@ and follow any instructions it gives you.
 To install tg, run
 
 	brew install dmnc/horology/tg
-	
+
 You can now launch tg by typing
 
 	tg-timer &
@@ -43,51 +119,6 @@ You can now launch tg by typing
 ### Debian or Debian-based (e.g. Mint, Ubuntu)
 
 Binary .deb packages can be downloaded from https://tg.ciovil.li
-
-## Recording and offline analysis
-
-- **Record**: Command menu → *Record to file...* saves the mic input to a
-  WAV file; *Stop recording* finalizes it.
-- **Analyze offline**: Command menu → *Open recording...* loads a WAV and
-  runs the same analysis pipeline without needing live audio. While a
-  recording is open, the timegrapher replays it at real time.
-- **Headless**: `tg-timer-dbg analyze file.wav` (debug build) prints
-  rate / beat error / amplitude / BPH and exits.
-
-## Debugging
-
-- **Verbose console**: run `tg-timer debug` to print the DSP diagnostics to
-  the terminal in any build (release included). `tg-timer debug full` adds
-  the per-detection details (autocorrelation peaks). `tg-timer --help` lists
-  all command-line options.
-- **Session log**: Command menu → *Save session log* writes the computation
-  cycles to `~/tg-logs/tg-session-<timestamp>.{json,csv,raw}` (structured
-  JSON/CSV + raw debug text) for post-mortem analysis.
-
-- **Input level**: the gain control (0.1–100) can attenuate or amplify the
-  input; the live level bar shows the input peak and a **CLIP** indicator
-  lights up when the signal saturates.
-- **Device**: the saved input device is matched ignoring the ALSA
-  `(hw:X,Y)` suffix, so a replugged microphone keeps working; use the
-  refresh button next to the mic selector to re-enumerate devices.
-
-## Testing
-
-- `make check` runs the unit tests: WAV module, session log and DSP regression
-  (synthetic clips at 12000–36000 BPH, with/without noise, controlled beat
-  error). Drop real recordings into `tests/fixtures/*.wav` to include them in
-  the DSP regression suite (they must at least detect a signal).
-
-## Live statistics
-
-The panel shows a live rate-trend chart (last ~5 minutes) with mean, standard
-deviation, min and max of the rate in s/d, updated every computation cycle.
-
-## Positions and report
-
-Select the watch position (dial up/down, crown up/down/left/right) with the
-"pos" selector to tag the live measurements. Command menu → *Export report...*
-writes a per-position summary to `~/tg-logs/tg-report-<timestamp>.{csv,pdf}`.
 
 ## Compiling from sources
 
@@ -152,3 +183,11 @@ cd tg
 ./configure
 make
 ```
+
+## Testing
+
+- `make check` runs the unit tests: WAV module, session log, DSP regression
+  (synthetic clips at 12000–36000 BPH, with/without noise, controlled beat
+  error), stats and report modules. Drop real recordings into
+  `tests/fixtures/*.wav` to include them in the DSP regression suite (they
+  must at least detect a signal).

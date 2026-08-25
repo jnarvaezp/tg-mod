@@ -8,16 +8,51 @@ Premisas de trabajo: ver `docs/DEVELOPMENT.md`.
 
 ## Estado actual
 
-- **Master** en `07f1dd2` (pusheado a `origin` = fork propio). Sin ramas
+- **Master** en `37cceb6` (pusheado a `origin` = fork propio). Sin ramas
   feature pendientes de integrar; todas las completadas se eliminaron.
 - Fases completadas: 0 (integración del trabajo pendiente), 1 (grabación +
-  análisis offline), 1.5 (session log + verbose), 3-base (calidad de señal).
+  análisis offline), 1.5 (session log + verbose), 2 (tests de regresión DSP),
+  3-base (calidad de señal), 4 (estadísticas y tendencia), 5 (multi-posición
+  + informe).
 - Características existentes: rate (s/d), beat error (ms), amplitud (grados),
   BPH, calibración automática (~15 min), paperstrip, formas de onda tic/toc y
   periodo, espectro en vivo, snapshots en pestañas, guardado/carga `.tgj`,
   persistencia de configuración (INI), grabación WAV, análisis offline
   (`--analyze`), session log (JSON/CSV/raw), control de ganancia con medidor
-  de nivel y selección robusta de dispositivo.
+  de nivel y selección robusta de dispositivo, estadísticas en vivo con
+  gráfico de tendencia, posiciones e informe (CSV/PDF), suite de pruebas
+  (`make check`).
+- Documentación: README bilingüe (README.md / README.es.md), guía completa
+  (docs/USAGE.md / docs/USAGE.en.md), spec del registro de relojes
+  (docs/superpowers/specs/2026-08-24-watch-db-design.md).
+
+## Fix pendiente — Informe vacío
+
+**Rama:** `feature/report-fix`
+
+El informe exportado excluía los ciclos sin posición etiquetada
+(`report_summary` solo iteraba posiciones 1–6). Fix: fila "none" (ciclos sin
+etiquetar) + fila "Total", y "no data" si el anillo está vacío.
+
+## Fase 5.5a — Registro de relojes (watch-db)
+
+**Rama:** `feature/watch-db` — **Spec:** docs/superpowers/specs/2026-08-24-watch-db-design.md
+
+- Almacenamiento JSON en `~/tg-data/` (watches.json + sesiones por reloj).
+- Lector/escritor JSON mínimo (`json.c`) y CRUD (`watchdb.c`) con tests.
+- Resumen de sesión con snapshot de configuración (bph, lift angle, cal,
+  gain, cutoff).
+
+## Fase 5.5b — Panel de sesiones (watch-panel)
+
+**Rama:** `feature/watch-panel`
+
+- Panel izquierdo: lista de relojes (crear/renombrar/eliminar), historial de
+  sesiones por reloj (fecha, posición, n, media, σ, be, amp).
+- Ciclo de sesión manual: Iniciar sesión / Finalizar y guardar (con la
+  posición y configuración actuales).
+- Export de historial (CSV/PDF por reloj) y gráfico de evolución del rate
+  por sesión.
 
 ## Fase 0 — Integración del trabajo pendiente
 
