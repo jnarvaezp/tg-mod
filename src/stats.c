@@ -52,7 +52,8 @@ const char *position_name(int pos)
 	return pos >= POSITION_NONE && pos <= POSITION_CR ? names[pos] : "?";
 }
 
-static int stats_summary_filter(int pos, uint64_t window_ms, struct stats_summary *out)
+static int stats_summary_filter(int pos, uint64_t window_ms,
+                                int only_untagged, struct stats_summary *out)
 {
 	pthread_mutex_lock(&st.m);
 	int start = st.n < STATS_CAP ? 0 : st.wp;
@@ -61,7 +62,10 @@ static int stats_summary_filter(int pos, uint64_t window_ms, struct stats_summar
 	int cnt = 0, i;
 	for(i = 0; i < st.n; i++) {
 		const struct stats_point *p = &st.pts[(start + i) % STATS_CAP];
-		if(pos != POSITION_NONE && p->position != pos) continue;
+		if(only_untagged) {
+			if(p->position != POSITION_NONE) continue;
+		} else if(pos != POSITION_NONE && p->position != pos)
+			continue;
 		if(window_ms && p->wall_ms + window_ms < newest) continue;
 		if(!cnt || p->rate < mn) mn = p->rate;
 		if(!cnt || p->rate > mx) mx = p->rate;
@@ -90,12 +94,17 @@ static int stats_summary_filter(int pos, uint64_t window_ms, struct stats_summar
 
 int stats_summary(uint64_t window_ms, struct stats_summary *out)
 {
-	return stats_summary_filter(POSITION_NONE, window_ms, out);
+	return stats_summary_filter(POSITION_NONE, window_ms, 0, out);
 }
 
 int stats_summary_pos(int pos, uint64_t window_ms, struct stats_summary *out)
 {
-	return stats_summary_filter(pos, window_ms, out);
+	return stats_summary_filter(pos, window_ms, 0, out);
+}
+
+int stats_summary_untagged(uint64_t window_ms, struct stats_summary *out)
+{
+	return stats_summary_filter(POSITION_NONE, window_ms, 1, out);
 }
 
 int stats_get_range(uint64_t from_ms, struct stats_point *out, int max)

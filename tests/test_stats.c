@@ -47,6 +47,12 @@ int main(void)
 	CHECK(fabs(s.max - 5.0) < 1e-9, "dd max");
 	CHECK(stats_summary_pos(POSITION_CR, 0, &s) == 0, "cr count");
 
+	/* Ciclos sin etiquetar: resumen separado. */
+	p.wall_ms = 3000; p.rate = 7.0; p.position = POSITION_NONE; stats_add(&p);
+	CHECK(stats_summary_untagged(1, &s) == 1, "untagged count");
+	CHECK(fabs(s.mean - 7.0) < 1e-9, "untagged mean");
+	CHECK(stats_summary(0, &s) > 0, "all still works");
+
 	/* mean_be / mean_amp en el resumen global */
 	CHECK(stats_summary(0, &s) > 0, "summary ok");
 	(void)s.mean_be; (void)s.mean_amp;

@@ -59,6 +59,9 @@ int stats_summary(uint64_t window_ms, struct stats_summary *out);
 /* Resumen del rate por posición (pos == POSITION_NONE -> todas). */
 int stats_summary_pos(int pos, uint64_t window_ms, struct stats_summary *out);
 
+/* Resumen del rate de los ciclos SIN posición etiquetada. */
+int stats_summary_untagged(uint64_t window_ms, struct stats_summary *out);
+
 /* Copia en `out` (máx `max`) los puntos con wall_ms >= from_ms, en orden
  * cronológico. Devuelve el nº copiado. */
 int stats_get_range(uint64_t from_ms, struct stats_point *out, int max);
