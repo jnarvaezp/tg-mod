@@ -170,20 +170,45 @@ const char *get_input_device_name(int index)
 	return NULL;
 }
 
-/* Iguala dos nombres de dispositivo, ignorando el sufijo "(hw:X,Y)"
- * (el índice ALSA cambia al reconectar el USB). */
+/* Iguala dos nombres de dispositivo de forma robusta. PortAudio nombra los
+ * dispositivos ALSA como "<tarjeta>: <pcm> (hw:X,Y)" y tanto el segmento de
+ * pcm como el índice cambian al reconectar el USB, así que compara solo el
+ * nombre de tarjeta (lo anterior a ':'), colapsando espacios y sin distinguir
+ * mayúsculas. Si alguno no tiene ':', cae al prefijo antes de "(hw:X,Y)". */
+static void name_key(const char *src, char *dst, size_t dstsz)
+{
+	const char *colon = strchr(src, ':');
+	size_t len = colon ? (size_t)(colon - src) : strlen(src);
+	if(!colon) {
+		const char *par = strrchr(src, '(');
+		if(par && par > src)
+			len = (size_t)(par - src);
+	}
+	size_t o = 0;
+	int last_space = 1;   /* recorta espacios iniciales */
+	size_t i;
+	for(i = 0; i < len && o + 1 < dstsz; i++) {
+		char ch = src[i];
+		if(ch >= 'A' && ch <= 'Z') ch = ch - 'A' + 'a';
+		if(ch == ' ') {
+			if(last_space) continue;
+			last_space = 1;
+		} else
+			last_space = 0;
+		dst[o++] = ch;
+	}
+	/* recorta espacio final */
+	while(o > 0 && dst[o-1] == ' ') o--;
+	dst[o] = 0;
+}
+
 static int device_name_matches(const char *a, const char *b)
 {
+	char ka[128], kb[128];
 	if(!strcmp(a, b)) return 1;
-	const char *pa = strrchr(a, '(');
-	const char *pb = strrchr(b, '(');
-	if(pa && pb && pa > a && pb > b) {
-		size_t la = pa - a;
-		size_t lb = pb - b;
-		if(la == lb && !strncmp(a, b, la))
-			return 1;
-	}
-	return 0;
+	name_key(a, ka, sizeof(ka));
+	name_key(b, kb, sizeof(kb));
+	return ka[0] && kb[0] && !strcmp(ka, kb);
 }
 
 int find_input_device_by_name(const char *name)
@@ -232,6 +257,11 @@ int start_portaudio(int *nominal_sample_rate, double *real_sample_rate, const ch
 #endif
 
 	/* Choose input device: preferred (by name) if provided, else system default */
+	int dev_count = Pa_GetDeviceCount();
+	if(dev_count < 0) {
+		error("Audio device enumeration failed: %s", Pa_GetErrorText(dev_count));
+		return 1;
+	}
 	PaDeviceIndex chosen = Pa_GetDefaultInputDevice();
 	if(preferred && *preferred) {
 		PaDeviceIndex found = find_input_device_by_name(preferred);
@@ -266,7 +296,7 @@ int start_portaudio(int *nominal_sample_rate, double *real_sample_rate, const ch
 	in_params.device = chosen;
 	in_params.channelCount = channels;
 	in_params.sampleFormat = paFloat32;
-	in_params.suggestedLatency = Pa_GetDeviceInfo(chosen)->defaultLowInputLatency;
+	in_params.suggestedLatency = chosen_info->defaultLowInputLatency;
 
 	err = Pa_OpenStream(&stream, &in_params, NULL, PA_SAMPLE_RATE, paFramesPerBufferUnspecified, paNoFlag, paudio_callback, &info);
 
@@ -299,7 +329,7 @@ int start_portaudio(int *nominal_sample_rate, double *real_sample_rate, const ch
 		in_params.device = def;
 		in_params.channelCount = def_channels;
 		in_params.sampleFormat = paFloat32;
-		in_params.suggestedLatency = Pa_GetDeviceInfo(def)->defaultLowInputLatency;
+		in_params.suggestedLatency = def_info->defaultLowInputLatency;
 
 		err = Pa_OpenStream(&stream, &in_params, NULL, PA_SAMPLE_RATE, paFramesPerBufferUnspecified, paNoFlag, paudio_callback, &info);
 		if(err != paNoError)

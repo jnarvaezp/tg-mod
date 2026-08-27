@@ -189,6 +189,9 @@ static void on_shutdown(GApplication *app, void *p)
 static void recompute(struct main_window *w);
 static void computer_callback(void *w);
 static void update_audio_mode_ui(struct main_window *w);
+static gboolean update_level(struct main_window *w);
+static guint kick_computer(struct main_window *w);
+static guint save_on_change_timer(struct main_window *w);
 
 static guint computer_terminated(struct main_window *w)
 {
@@ -197,6 +200,15 @@ static guint computer_terminated(struct main_window *w)
 		gtk_widget_destroy(w->window);
 	} else {
 		debug("Restarting computer\n");
+		/* Remove the periodic timeouts BEFORE destroying the computer and
+		 * re-opening audio: their callbacks (kick_computer -> recompute)
+		 * dereference w->computer, and error()'s modal dialog inside
+		 * start_portaudio runs a nested main loop that lets them fire. */
+		if(w->kick_timeout) g_source_remove(w->kick_timeout);
+		if(w->save_timeout) g_source_remove(w->save_timeout);
+		if(w->level_timeout) g_source_remove(w->level_timeout);
+		w->kick_timeout = w->save_timeout = w->level_timeout = 0;
+
 		computer_destroy(w->computer);
 		w->computer = NULL;
 
@@ -206,8 +218,6 @@ static guint computer_terminated(struct main_window *w)
 			terminate_portaudio();
 			double real_sr;
 			if(start_portaudio(&w->nominal_sr, &real_sr, w->input_device)) {
-				g_source_remove(w->kick_timeout);
-				g_source_remove(w->save_timeout);
 				w->zombie = 1;
 				error("Failed to re-open audio input device");
 				gtk_widget_destroy(w->window);
@@ -234,8 +244,6 @@ static guint computer_terminated(struct main_window *w)
 
 		struct computer *c = start_computer(w->nominal_sr, w->bph, w->la, w->cal, w->is_light);
 		if(!c) {
-			g_source_remove(w->kick_timeout);
-			g_source_remove(w->save_timeout);
 			w->zombie = 1;
 			error("Failed to restart computation thread");
 			gtk_widget_destroy(w->window);
@@ -263,6 +271,11 @@ static guint computer_terminated(struct main_window *w)
 			update_audio_mode_ui(w);
 			recompute(w);
 		}
+
+		/* Re-register the periodic timeouts now that a computer exists. */
+		w->kick_timeout = g_timeout_add_full(G_PRIORITY_LOW,100,(GSourceFunc)kick_computer,w,NULL);
+		w->level_timeout = g_timeout_add_full(G_PRIORITY_LOW, 100, (GSourceFunc)update_level, w, NULL);
+		w->save_timeout = g_timeout_add_full(G_PRIORITY_LOW,10000,(GSourceFunc)save_on_change_timer,w,NULL);
 	}
 	return FALSE;
 }
@@ -281,13 +294,16 @@ static void kill_computer(struct main_window *w)
 
 static gboolean quit(struct main_window *w)
 {
-	g_source_remove(w->kick_timeout);
-	g_source_remove(w->save_timeout);
+	if(w->kick_timeout) g_source_remove(w->kick_timeout);
+	if(w->save_timeout) g_source_remove(w->save_timeout);
 	if(w->level_timeout) g_source_remove(w->level_timeout);
+	w->kick_timeout = w->save_timeout = w->level_timeout = 0;
 	w->zombie = 1;
-	lock_computer(w->computer);
-	kill_computer(w);
-	unlock_computer(w->computer);
+	if(w->computer) {
+		lock_computer(w->computer);
+		kill_computer(w);
+		unlock_computer(w->computer);
+	}
 	return FALSE;
 }
 
@@ -308,6 +324,8 @@ static void handle_quit(GtkMenuItem *m, struct main_window *w)
 
 static void recompute(struct main_window *w)
 {
+	if(!w->computer)
+		return;   /* reinicio en curso (p. ej. dentro del diálogo de fallback) */
 	w->computer_timeout = 0;
 	lock_computer(w->computer);
 	if(w->computer->recompute >= 0) {
@@ -326,6 +344,8 @@ static void recompute(struct main_window *w)
 
 static guint kick_computer(struct main_window *w)
 {
+	if(!w->computer)
+		return TRUE;   /* reinicio en curso: no hay nada que patear */
 	w->computer_timeout++;
 	if(w->calibrate && w->computer_timeout < 10) {
 		return TRUE;
@@ -567,6 +587,8 @@ static gboolean update_level(struct main_window *w)
 {
 	float peak = 0;
 	get_audio_level(&peak, NULL);
+	if(peak < 0.0f) peak = 0;
+	if(peak > 1.0f) peak = 1.0f;   /* el gain llega a 100x: clamp para evitar criticals de GTK */
 	gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(w->level_bar), peak);
 	if(peak > 0.98f)
 		gtk_widget_show(w->clip_label);

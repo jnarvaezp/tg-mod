@@ -268,6 +268,10 @@ struct computer *start_computer(int nominal_sr, int bph, double la, int cal, int
 	s->events_wp = 0;
 	s->events_from = 0;
 	s->trace_centering = 0;
+	s->guessed_bph = 0;
+	s->rate = 0;
+	s->be = 0;
+	s->amp = 0;
 	s->bph = bph;
 	s->la = la;
 	s->cal = cal;
