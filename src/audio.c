@@ -247,7 +247,12 @@ int start_portaudio(int *nominal_sample_rate, double *real_sample_rate, const ch
 		error("No audio input device found");
 		return 1;
 	}
-	long channels = Pa_GetDeviceInfo(chosen)->maxInputChannels;
+	const PaDeviceInfo *chosen_info = Pa_GetDeviceInfo(chosen);
+	if(!chosen_info) {
+		error("Cannot read info for the selected audio device");
+		return 1;
+	}
+	long channels = chosen_info->maxInputChannels;
 	if(channels == 0) {
 		error("Selected audio device has no input channels");
 		return 1;
@@ -277,7 +282,12 @@ int start_portaudio(int *nominal_sample_rate, double *real_sample_rate, const ch
 			error("No default audio input device found");
 			return 1;
 		}
-		long def_channels = Pa_GetDeviceInfo(def)->maxInputChannels;
+		const PaDeviceInfo *def_info = Pa_GetDeviceInfo(def);
+		if(!def_info) {
+			error("Cannot read info for the default audio device");
+			return 1;
+		}
+		long def_channels = def_info->maxInputChannels;
 		if(def_channels == 0) {
 			error("Default audio device has no input channels");
 			return 1;
@@ -303,7 +313,7 @@ int start_portaudio(int *nominal_sample_rate, double *real_sample_rate, const ch
 
 	const PaStreamInfo *stream_info = Pa_GetStreamInfo(stream);
 	*nominal_sample_rate = PA_SAMPLE_RATE;
-	*real_sample_rate = stream_info->sampleRate;
+	*real_sample_rate = stream_info ? stream_info->sampleRate : PA_SAMPLE_RATE;
 #ifdef DEBUG
 end:
 #endif
