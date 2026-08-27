@@ -26,6 +26,17 @@ Premisas de trabajo: ver `docs/DEVELOPMENT.md`.
   (docs/USAGE.md / docs/USAGE.en.md), spec del registro de relojes
   (docs/superpowers/specs/2026-08-24-watch-db-design.md).
 
+## Estabilización — crash de reinicio y dispositivos (hecho)
+
+**Rama:** `feature/stability-fix` — **Estado:** completada.
+
+- Segfault al reabrir audio con el dispositivo guardado ausente (re-entrancia
+del timeout kick_computer dentro del diálogo de fallback): corregido.
+- Matching de dispositivo por nombre de tarjeta (inmune a cambios de nombre
+PCM y de índice hw al reconectar el USB).
+- Errores transitorios de ALSA reportados; guards NULL en device/stream info;
+clamps y inicializaciones menores.
+
 ## Fix pendiente — Informe vacío (hecho)
 
 **Rama:** `feature/report-fix` — **Estado:** completada.
