@@ -27,6 +27,7 @@ LIBS = $(GTK_LIBS) \
        $(GTHREAD_LIBS) \
        $(PORTAUDIO_LIBS) \
        $(FFTW_LIBS) \
+       $(SQLITE_LIBS) \
        -lpthread \
        -lm
 
@@ -36,7 +37,8 @@ tg_timer_dbg_CPPFLAGS = $(AM_CPPFLAGS) -DDEBUG
 AM_CFLAGS = $(GTK_CFLAGS) \
 	    $(GTHREAD_CFLAGS) \
 	    $(PORTAUDIO_CFLAGS) \
-	    $(FFTW_CFLAGS)
+	    $(FFTW_CFLAGS) \
+	    $(SQLITE_CFLAGS)
 tg_timer_dbg_CFLAGS = $(AM_CFLAGS) -ggdb
 tg_timer_prf_CFLAGS = $(AM_CFLAGS) -pg
 tg_timer_vlg_CFLAGS = $(AM_CFLAGS) -g
@@ -81,7 +83,7 @@ valgrind: tg-timer-vlg
 	valgrind --leak-check=full -v --num-callers=99 --suppressions=.valgrind.supp ./$^
 .PHONY: valgrind
 
-check_PROGRAMS = tests/test_wav tests/test_session tests/test_dsp tests/test_stats tests/test_report tests/test_json
+check_PROGRAMS = tests/test_wav tests/test_session tests/test_dsp tests/test_stats tests/test_report tests/test_json tests/test_watchdb
 tests_test_wav_SOURCES = tests/test_wav.c src/wav.c
 tests_test_wav_CFLAGS = $(AM_CFLAGS) -I$(srcdir)/src
 tests_test_session_SOURCES = tests/test_session.c src/session.c
@@ -99,4 +101,7 @@ tests_test_report_LDADD = $(GTK_LIBS) -lpthread -lm
 tests_test_json_SOURCES = tests/test_json.c src/json.c
 tests_test_json_CFLAGS = $(AM_CFLAGS) -I$(srcdir)/src
 tests_test_json_LDADD = -lpthread -lm
-TESTS = tests/test_wav tests/test_session tests/test_dsp tests/test_stats tests/test_report tests/test_json
+tests_test_watchdb_SOURCES = tests/test_watchdb.c src/watchdb.c
+tests_test_watchdb_CFLAGS = $(SQLITE_CFLAGS) $(AM_CFLAGS) -I$(srcdir)/src
+tests_test_watchdb_LDADD = $(SQLITE_LIBS) $(GTK_LIBS) -lpthread -lm
+TESTS = tests/test_wav tests/test_session tests/test_dsp tests/test_stats tests/test_report tests/test_json tests/test_watchdb

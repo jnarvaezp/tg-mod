@@ -30,6 +30,8 @@ tg-timer-vlg
 /tests/test_stats
 /tests/test_report
 /tests/test_json
+/tests/test_watchdb
+/test_watchdb_out/
 /test_dsp_out/
 /test_report_out/
 /tests/fixtures/*.wav
