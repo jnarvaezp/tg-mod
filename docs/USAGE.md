@@ -95,8 +95,10 @@ Rangos típicos según BPH:
   o el reloj sin cuerda completa.
 - **Alta amplitud** (> 330°): sobreoscilación (knocking) — peligro de golpe
   del escape.
-- La app muestra `0` (no disponible) cuando la medida queda fuera del rango
-  válido (135°–360°).
+- La app muestra la amplitud estimada **aunque esté fuera del rango físico**
+  (135°–360°) marcada con un asterisco (`100*`) — es información de
+  diagnóstico: una amplitud baja indica desgaste o falta de cuerda. Solo
+  muestra `---` cuando ni siquiera logra medir los pulsos.
 
 ### Lift angle (grados)
 

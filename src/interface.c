@@ -1523,8 +1523,8 @@ int main(int argc, char **argv)
 			fprintf(stderr, "analyze failed for %s\n", argv[2]);
 			return 1;
 		}
-		printf("signal %d\nbph %d\nrate %.3f s/d\nbe %.3f ms\namp %.1f deg\n",
-		       r.signal, r.guessed_bph, r.rate, r.be, r.amp);
+		printf("signal %d\nbph %d\nrate %.3f s/d\nbe %.3f ms\namp %.1f deg\namp_valid %d\n",
+		       r.signal, r.guessed_bph, r.rate, r.be, r.amp, r.amp_valid);
 		return 0;
 	}
 #endif

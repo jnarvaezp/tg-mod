@@ -151,9 +151,12 @@ void compute_results(struct snapshot *s)
 		s->guessed_bph = s->bph ? s->bph : guess_bph(s->pb->period / s->sample_rate);
 		s->rate = (7200/(s->guessed_bph * s->pb->period / s->sample_rate) - 1)*24*3600;
 		s->be = fabs(s->pb->be) * 1000 / s->sample_rate;
-		s->amp = s->la * s->pb->amp; // 0 = not available
-		if(s->amp < 135 || s->amp > 360)
+		s->amp = s->la * s->pb->amp; // < 0 = no se midieron pulsos
+		s->amp_valid = s->pb->amp_valid;
+		if(s->amp < 0) {
 			s->amp = 0;
+			s->amp_valid = 0;
+		}
 	} else
 		s->guessed_bph = s->bph ? s->bph : DEFAULT_BPH;
 }

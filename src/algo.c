@@ -159,6 +159,7 @@ struct processing_buffers *pb_clone(struct processing_buffers *p)
 	new->tic_pulse = p->tic_pulse;
 	new->toc_pulse = p->toc_pulse;
 	new->amp = p->amp;
+	new->amp_valid = p->amp_valid;
 	new->tic = p->tic;
 	new->toc = p->toc;
 	new->ready = p->ready;
@@ -778,6 +779,7 @@ static void compute_amplitude(struct processing_buffers *p, double la)
 	debug("amp threshold from %s\n", .01 * glob_max > 1.4 * max ? "global maximum" : "noise level");
 
 	p->amp = -1;
+	p->amp_valid = 0;
 	p->tic_pulse = p->toc_pulse = -1;
 	p->unlock = p->impulse = p->drop = -1;
 	p->unlock2 = p->impulse2 = p->drop2 = -1;
@@ -810,8 +812,13 @@ static void compute_amplitude(struct processing_buffers *p, double la)
 		double toc_amp_abs = .5 / sin(M_PI * toc_pulse / p->period);
 		double tic_amp = la * tic_amp_abs;
 		double toc_amp = la * toc_amp_abs;
+		/* Conservar la última estimación aunque no pase la validación:
+		 * una amplitud fuera de rango (p. ej. muy baja por desgaste) es
+		 * información valiosa para el diagnóstico. */
+		p->amp = (tic_amp_abs + toc_amp_abs) / 2;
+		p->amp_valid = 0;
 		if(135 < tic_amp && tic_amp < 360 && 135 < toc_amp && toc_amp < 360 && fabs(tic_amp - toc_amp) < 60) {
-			p->amp = (tic_amp_abs + toc_amp_abs) / 2;
+			p->amp_valid = 1;
 			p->tic_pulse = tic_pulse;
 			p->toc_pulse = toc_pulse;
 			p->be = p->period/2 - fabs(p->toc - p->tic + p->tic_pulse - p->toc_pulse);
@@ -884,6 +891,9 @@ static void compute_amplitude(struct processing_buffers *p, double la)
 			debug("amp rejected\n");
 next_threshold:	threshold *= 1.4;
 	}
+	/* p->amp conserva la última estimación; amp_valid dice si pasó la
+	 * validación (135-360 grados con el lift angle dado). -1 = nunca
+	 * se midieron pulsos. */
 	if(p->amp < 0) debug("amp failed\n");
 }
 

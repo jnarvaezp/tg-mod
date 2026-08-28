@@ -85,6 +85,7 @@ struct processing_buffers {
 	fftwf_plan plan_a, plan_b, plan_c, plan_d, plan_e, plan_f, plan_g;
 	struct filter *hpf, *lpf;
 	double period,sigma,be,waveform_max,phase,tic_pulse,toc_pulse,amp;
+	int amp_valid;   /* 1 si la amplitud pasó la validación (135-360 deg) */
 	double cal_phase;
 	int waveform_max_i;
 	int tic,toc;
@@ -143,7 +144,8 @@ struct offline_result {
 	int guessed_bph;
 	double rate;        /* s/d */
 	double be;          /* ms */
-	double amp;         /* deg (0 = no disponible) */
+	double amp;         /* deg estimado (0 = no disponible) */
+	int amp_valid;      /* 1 si la amplitud está dentro del rango físico */
 };
 
 int analyze_audio_file(const char *path, int bph, double la, double cal, struct offline_result *res);
@@ -217,6 +219,7 @@ struct snapshot {
 	double rate;
 	double be;
 	double amp;
+	int amp_valid;   /* 1 = amplitud dentro del rango físico (135-360 deg) */
 
 	double trace_centering;
 };
