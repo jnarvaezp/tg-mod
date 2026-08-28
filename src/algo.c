@@ -153,6 +153,7 @@ struct processing_buffers *pb_clone(struct processing_buffers *p)
 	new->toc_pulse = p->toc_pulse;
 	new->amp = p->amp;
 	new->amp_valid = p->amp_valid;
+	new->snr_db = p->snr_db;
 	new->tic = p->tic;
 	new->toc = p->toc;
 	new->ready = p->ready;
@@ -781,6 +782,8 @@ static void compute_amplitude(struct processing_buffers *p, double la)
 	}
 	double glob_max = vmax(smooth_wf, 0, ceil(p->period), NULL);
 	double threshold = fmax(.01 * glob_max, 1.4 * max);
+	/* SNR del tic: pico de la señal plegada contra el ruido de fondo. */
+	p->snr_db = max > 0 ? 20 * log10(glob_max / max) : 0;
 	debug("amp threshold from %s\n", .01 * glob_max > 1.4 * max ? "global maximum" : "noise level");
 
 	p->amp = -1;

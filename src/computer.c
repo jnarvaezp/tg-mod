@@ -213,12 +213,15 @@ void compute_results(struct snapshot *s)
 		s->be = fabs(s->pb->be) * 1000 / s->sample_rate;
 		s->amp = s->la * s->pb->amp; // < 0 = no se midieron pulsos
 		s->amp_valid = s->pb->amp_valid;
+		s->snr_db = s->pb->snr_db;
 		if(s->amp < 0) {
 			s->amp = 0;
 			s->amp_valid = 0;
 		}
-	} else
+	} else {
 		s->guessed_bph = s->bph ? s->bph : DEFAULT_BPH;
+		s->snr_db = 0;
+	}
 }
 
 static void *computing_thread(void *void_computer)

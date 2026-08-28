@@ -58,6 +58,28 @@ void set_audio_gain(double g)
 	pthread_mutex_unlock(&audio_mutex);
 }
 
+double get_audio_gain(void)
+{
+	double g;
+	pthread_mutex_lock(&audio_mutex);
+	g = audio_gain;
+	pthread_mutex_unlock(&audio_mutex);
+	return g;
+}
+
+/* Sugiere el gain para llevar el pico reciente a `target` (0-1). */
+double audio_suggest_gain(double target)
+{
+	float peak = 0;
+	double g = get_audio_gain();
+	get_audio_level(&peak, NULL);
+	if(peak <= 0.001) return g;   /* sin señal: no sugerir cambios */
+	double suggested = g * (target / peak);
+	if(suggested < 0.1) suggested = 0.1;
+	if(suggested > 100.0) suggested = 100.0;
+	return suggested;
+}
+
 /* Data for PA callback to use */
 static struct callback_info {
 	int 	channels;	//!< Number of channels

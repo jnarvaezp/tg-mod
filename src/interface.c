@@ -430,6 +430,19 @@ static void handle_gain_change(GtkSpinButton *b, struct main_window *w)
 	set_audio_gain(g);
 }
 
+/* Ajusta el gain para dejar el pico de entrada en ~0.8. */
+static void handle_auto_gain(GtkButton *b, struct main_window *w)
+{
+	UNUSED(b);
+	double ng = audio_suggest_gain(0.8);
+	ng = round(ng * 10) / 10;   /* el spin muestra 1 decimal */
+	if(ng < 0.1) ng = 0.1;
+	if(ng > 100.0) ng = 100.0;
+	w->gain = ng;
+	set_audio_gain(ng);
+	gtk_spin_button_set_value(GTK_SPIN_BUTTON(w->gain_spin_button), ng);
+}
+
 static void handle_position_change(GtkComboBox *b, struct main_window *w)
 {
 	if(!w->controls_active) return;
@@ -1143,6 +1156,13 @@ static void init_main_window(struct main_window *w)
 	gtk_box_pack_start(GTK_BOX(hbox), w->gain_spin_button, FALSE, FALSE, 0);
 	g_signal_connect(w->gain_spin_button, "value_changed", G_CALLBACK(handle_gain_change), w);
 
+	// Auto gain button
+	GtkWidget *auto_button = gtk_button_new_with_label("Auto");
+	gtk_widget_set_tooltip_text(auto_button,
+		"Adjust the gain to bring the input peak to ~0.8 (0.5 s average)");
+	g_signal_connect(auto_button, "clicked", G_CALLBACK(handle_auto_gain), w);
+	gtk_box_pack_start(GTK_BOX(hbox), auto_button, FALSE, FALSE, 0);
+
 	// Cutoff label + spin button
 	label = gtk_label_new("cutoff");
 	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
@@ -1165,6 +1185,8 @@ static void init_main_window(struct main_window *w)
 	w->clip_label = gtk_label_new("CLIP");
 	gtk_box_pack_start(GTK_BOX(hbox), w->clip_label, FALSE, FALSE, 0);
 	gtk_widget_hide(w->clip_label);
+	w->snr_label = gtk_label_new("SNR -- dB");
+	gtk_box_pack_start(GTK_BOX(hbox), w->snr_label, FALSE, FALSE, 0);
 
 	// Position selector
 	label = gtk_label_new("pos");
@@ -1390,6 +1412,12 @@ guint refresh(struct main_window *w)
 	sp.amp = sc.amp;
 	sp.position = w->position;
 	stats_add(&sp);
+
+	{
+		char snr[32];
+		snprintf(snr, sizeof(snr), "SNR %.0f dB", sn->snr_db);
+		gtk_label_set_text(GTK_LABEL(w->snr_label), snr);
+	}
 
 	return FALSE;
 }
