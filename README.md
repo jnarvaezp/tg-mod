@@ -17,6 +17,10 @@ respective contributors.
 - **Original project:** [vacaboja/tg](https://github.com/vacaboja/tg), by
   **Marcello Mamino** and contributors. This fork keeps all the original
   code and credits intact.
+- **Algorithmic improvements ported from:**
+  [xyzzy42/tg](https://github.com/xyzzy42/tg) by **Trent Piepho** (GPL-2):
+  low-BPH support (8100+), sigma fix, paperstrip v2 (zoom, timestamps,
+  colors, amplitude overlay) and the tic/toc event tracking.
 - **Fork maintained by:** Jonathan Narvaez (jnarvaezp) —
   [github.com/jnarvaezp/tg-mod](https://github.com/jnarvaezp/tg-mod).
 
