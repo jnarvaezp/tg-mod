@@ -77,6 +77,12 @@
 
 #define UNUSED(X) (void)(X)
 
+/** Hold timestamp and type of a vibration. */
+struct event {
+	uint64_t pos;	//< Position, may be relative or absolute timestamp
+	bool tictoc;	//< Is this vibration the tic or toc half-cycle?
+};
+
 /* algo.c */
 struct processing_buffers {
 	int sample_rate;
@@ -97,7 +103,8 @@ struct processing_buffers {
 	int unlock, impulse, drop;
 	int unlock2, impulse2, drop2;
 	uint64_t timestamp, last_tic, last_toc, events_from;
-	uint64_t *events;
+	/** Dynamically allocated array of events, using absolute timestamps.  Terminated by 0 value for position. */
+	struct event *events;
 #ifdef DEBUG
 	int debug_size;
 	float *debug;
@@ -205,6 +212,7 @@ struct snapshot {
 
 	int events_count;
 	uint64_t *events; // used in cal+timegrapher mode
+	unsigned char *events_tictoc;	//< Tic or Toc for each event
 	int events_wp; // used in cal+timegrapher mode
 	uint64_t events_from; // used only in timegrapher mode
 
