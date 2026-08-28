@@ -359,6 +359,21 @@ struct main_window {
 	GtkWidget *position_combo;
 	int position;   /* POSITION_* actual (etiqueta de los ciclos en vivo) */
 	guint level_timeout;
+
+	/* Watch panel (watchmaker's logbook) */
+	GtkWidget *paned;                    /* left panel + main content */
+	GtkWidget *watch_list;               /* GtkListBox of watches */
+	GtkWidget *session_tree;             /* GtkTreeView of sessions */
+	GtkWidget *session_note_entry;
+	GtkWidget *session_start_button;
+	GtkWidget *session_finish_button;
+	GtkWidget *watch_delete_button;
+	GtkWidget *session_status_label;
+	int64_t selected_watch_id;           /* -1 = none */
+	char selected_watch_name[64];
+	int session_active;
+	uint64_t session_start_ms;
+	guint session_timeout;
 	GtkWidget *record_item;
 	GtkWidget *stop_record_item;
 	GtkWidget *close_rec_item;

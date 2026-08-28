@@ -10,6 +10,7 @@ tg_timer_SOURCES = src/algo.c \
 		   src/computer.c \
 		   src/config.c \
 		   src/interface.c \
+		   src/json.c \
 		   src/offline.c \
 		   src/output_panel.c \
 		   src/serializer.c \
@@ -17,7 +18,9 @@ tg_timer_SOURCES = src/algo.c \
 		   src/wav.c \
 		   src/session.c \
 		   src/stats.c \
-		   src/report.c
+		   src/report.c \
+		   src/watch_panel.c \
+		   src/watchdb.c
 
 tg_timer_dbg_SOURCES = $(tg_timer_SOURCES)
 tg_timer_prf_SOURCES = $(tg_timer_SOURCES)

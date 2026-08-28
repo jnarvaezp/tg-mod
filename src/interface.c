@@ -20,6 +20,8 @@
 #include "session.h"
 #include "stats.h"
 #include "report.h"
+#include "watch_panel.h"
+#include "watchdb.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -178,6 +180,7 @@ static void on_shutdown(GApplication *app, void *p)
 		if(get_recording()) stop_recording();
 		if(w->computer) computer_destroy(w->computer);
 		if(w->active_panel) op_destroy(w->active_panel);
+		watchdb_close();
 		close_config(w);
 		g_free(w->audio_file_name);
 		g_free(w->pending_audio_file);
@@ -1063,7 +1066,6 @@ static void init_main_window(struct main_window *w)
 	gtk_window_set_icon_name (GTK_WINDOW(w->window), PACKAGE);
 
 	GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
-	gtk_container_add(GTK_CONTAINER(w->window), vbox);
 
 	GtkWidget *hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
 	gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
@@ -1306,6 +1308,14 @@ static void init_main_window(struct main_window *w)
 	gtk_notebook_append_page(GTK_NOTEBOOK(w->notebook), w->active_panel->panel, tab_label);
 	gtk_notebook_set_tab_reorderable(GTK_NOTEBOOK(w->notebook), w->active_panel->panel, TRUE);
 
+	// Watch panel on the left, main content on the right
+	GtkWidget *left = watch_panel_build(w);
+	w->paned = gtk_paned_new(GTK_ORIENTATION_HORIZONTAL);
+	gtk_paned_pack1(GTK_PANED(w->paned), left, FALSE, FALSE);
+	gtk_paned_pack2(GTK_PANED(w->paned), vbox, TRUE, FALSE);
+	gtk_paned_set_position(GTK_PANED(w->paned), 300);
+	gtk_container_add(GTK_CONTAINER(w->window), w->paned);
+
 	gtk_window_maximize(GTK_WINDOW(w->window));
 	gtk_widget_show_all(w->window);
 	gtk_widget_hide(w->snapshot_name);
@@ -1402,6 +1412,16 @@ static void start_interface(GApplication* app, void *p)
 
 	session_init();
 	stats_init();
+
+	{
+		char *dir = g_build_filename(g_get_home_dir(), "tg-data", NULL);
+		g_mkdir_with_parents(dir, 0755);
+		char *db = g_build_filename(dir, "tg.db", NULL);
+		if(watchdb_open(db))
+			error("Cannot open watch database %s", db);
+		g_free(db);
+		g_free(dir);
+	}
 
 	w->app = GTK_APPLICATION(app);
 
