@@ -161,6 +161,24 @@ Uso: menú Command → «Open recording…» para analizar un WAV sin micrófono
 - Menú Command → *Export report...*: escribe en `~/tg-logs/`
   `tg-report-<timestamp>.{csv,pdf}` (PDF generado con Cairo).
 
+- Amplitud estimada visible aunque esté fuera del rango físico (135–360°),
+  marcada con `*` y acotada a 720°.
+
+## Fase 7c — Procesamiento por paso (completada)
+
+**Rama:** `feature/xyzzy42-7c` — **Estado:** completada.
+
+Port de [xyzzy42/tg](https://github.com/xyzzy42/tg) por **Trent Piepho**
+(GPL-2), commit 74f764f: `fill_buffers` se llama una vez por ciclo y
+`analyze_pa_data` procesa **un solo paso**; `compute_update` recorre los
+pasos empezando por el que funcionó la vez anterior (`last_step`), subiendo
+mientras pase la aceptación y bajando al fallar. Los pasos nunca necesarios
+no se procesan — **gran aceleración** del ciclo de cómputo.
+
+- **tppm (True Peak meter): diferido** — usa intrinsics SSE (x86 específico)
+  y nuestro medidor de pico simple cubre el caso de uso (ajuste de gain y
+  CLIP). Reevaluar si se necesita precisión de difusión.
+
 ## Fase 7a — Port de fixes algorítmicos de xyzzy42 (completada)
 
 **Rama:** `feature/xyzzy42-algo` — **Estado:** completada.
