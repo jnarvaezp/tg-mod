@@ -114,10 +114,10 @@ int main(void)
 
 	int i;
 	struct { int bph; int expect_signal; } cases[] = {
-		/* 12000 (0.6 s) y 14400 (0.5 s): el guard de process()
-		 * (algo.c:978, "Detected period too long") rechaza periodos >= 0.5 s
-		 * a 44.1 kHz; el generador no puede sortear esa limitación. */
-		{ 12000, 0 }, { 14400, 0 },
+		/* 12000 (0.6 s) y 14400 (0.5 s) ahora soportados: el guard de
+		 * process() usa un límite dinámico (1.2x el periodo nominal,
+		 * port de xyzzy42/tg por Trent Piepho) en vez de 0.5 s fijo. */
+		{ 12000, 1 }, { 14400, 1 },
 		{ 18000, 1 }, { 21600, 1 }, { 28800, 1 }, { 36000, 1 },
 	};
 	for(i = 0; i < (int)(sizeof(cases)/sizeof(cases[0])); i++) {

@@ -92,8 +92,10 @@ Typical healthy ranges by BPH:
 - **Low amplitude** (< 150–180°): worn pivots/jewels, old oil, or the watch
   not fully wound.
 - **High amplitude** (> 330°): over-banking (knocking).
-- The app shows `0` (not available) when the measurement falls outside the
-  valid range (135°–360°).
+- The app shows the estimated amplitude **even when outside the physical
+  range** (135°–360°), marked with an asterisk (`100*`) — it is diagnostic
+  information: low amplitude indicates wear or lack of winding. It only
+  shows `---` when it cannot measure the pulses at all.
 
 ### Lift angle (degrees)
 

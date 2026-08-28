@@ -73,9 +73,9 @@ static void run_filter(struct filter *f, float *buff, int size)
 void setup_buffers(struct processing_buffers *b)
 {
 	b->samples = fftwf_malloc(2 * b->sample_count * sizeof(float));
-	b->samples_sc = malloc(2 * b->sample_count * sizeof(float));
-	b->waveform = malloc(2 * b->sample_rate * sizeof(float));
-	b->waveform_sc = malloc(2 * b->sample_rate * sizeof(float));
+	b->samples_sc = fftwf_malloc(2 * b->sample_count * sizeof(float));
+	b->waveform = fftwf_malloc(2 * b->sample_rate * sizeof(float));
+	b->waveform_sc = fftwf_malloc(2 * b->sample_rate * sizeof(float));
 	b->fft = fftwf_malloc((b->sample_count + 1) * sizeof(fftwf_complex));
 	b->sc_fft = fftwf_malloc((b->sample_count + 1) * sizeof(fftwf_complex));
 	b->tic_wf = fftwf_malloc(b->sample_rate * sizeof(float));
@@ -105,9 +105,9 @@ void setup_buffers(struct processing_buffers *b)
 void pb_destroy(struct processing_buffers *b)
 {
 	fftwf_free(b->samples);
-	free(b->samples_sc);
-	free(b->waveform);
-	free(b->waveform_sc);
+	fftwf_free(b->samples_sc);
+	fftwf_free(b->waveform);
+	fftwf_free(b->waveform_sc);
 	fftwf_free(b->fft);
 	fftwf_free(b->sc_fft);
 	fftwf_free(b->tic_wf);
@@ -159,6 +159,7 @@ struct processing_buffers *pb_clone(struct processing_buffers *p)
 	new->tic_pulse = p->tic_pulse;
 	new->toc_pulse = p->toc_pulse;
 	new->amp = p->amp;
+	new->amp_valid = p->amp_valid;
 	new->tic = p->tic;
 	new->toc = p->toc;
 	new->ready = p->ready;
@@ -336,7 +337,7 @@ static void prepare_data(struct processing_buffers *b, int run_noise_suppressor)
 
 	fftwf_execute(b->plan_a);
 	for(i=0; i < b->sample_count+1; i++)
-			b->sc_fft[i] = b->fft[i] * conj(b->fft[i]);
+			b->sc_fft[i] = b->fft[i] * conjf(b->fft[i]);
 	fftwf_execute(b->plan_b);
 
 #ifdef DEBUG
@@ -464,7 +465,7 @@ static int compute_period(struct processing_buffers *b, int bph)
 	if(count > 1)
 		b->sigma = sqrt((sq_sum - count * estimate * estimate)/ (count-1));
 	else
-		b->sigma = b->period;
+		b->sigma = 0;	/* No std. dev. estimate possible with just 1 sample */
 	return 0;
 }
 
@@ -610,7 +611,7 @@ static void prepare_waveform(struct processing_buffers *p)
 	int i;
 	fftwf_execute(p->plan_c);
 	for(i=0; i < p->sample_rate+1; i++)
-			p->sc_fft[i] *= conj(p->sc_fft[i]);
+			p->sc_fft[i] *= conjf(p->sc_fft[i]);
 	fftwf_execute(p->plan_d);
 }
 
@@ -707,7 +708,7 @@ static void do_locate_events(int *events, struct processing_buffers *p, float *w
 			p->slice_wf[i] = p->samples[i+s];
 		fftwf_execute(p->plan_f);
 		for(i=0; i < p->sample_rate/2+1; i++)
-			p->slice_fft[i] *= conj(p->tic_fft[i]);
+			p->slice_fft[i] *= conjf(p->tic_fft[i]);
 		fftwf_execute(p->plan_g);
 		for(i=0; i < p->sample_rate/2; i++)
 			p->tic_c[i+s] = p->slice_wf[i];
@@ -778,6 +779,7 @@ static void compute_amplitude(struct processing_buffers *p, double la)
 	debug("amp threshold from %s\n", .01 * glob_max > 1.4 * max ? "global maximum" : "noise level");
 
 	p->amp = -1;
+	p->amp_valid = 0;
 	p->tic_pulse = p->toc_pulse = -1;
 	p->unlock = p->impulse = p->drop = -1;
 	p->unlock2 = p->impulse2 = p->drop2 = -1;
@@ -810,8 +812,19 @@ static void compute_amplitude(struct processing_buffers *p, double la)
 		double toc_amp_abs = .5 / sin(M_PI * toc_pulse / p->period);
 		double tic_amp = la * tic_amp_abs;
 		double toc_amp = la * toc_amp_abs;
+		/* Conservar la última estimación aunque no pase la validación:
+		 * una amplitud fuera de rango (p. ej. muy baja por desgaste) es
+		 * información valiosa para el diagnóstico. Acotada a 720 deg
+		 * (2x knocking): valores mayores son ruido de pulsos degenerados. */
+		double amp_abs = (tic_amp_abs + toc_amp_abs) / 2;
+		double amp_deg = la * amp_abs;
+		if(amp_deg > 0 && amp_deg <= 720) {
+			p->amp = amp_abs;
+			p->amp_valid = 0;
+		}
 		if(135 < tic_amp && tic_amp < 360 && 135 < toc_amp && toc_amp < 360 && fabs(tic_amp - toc_amp) < 60) {
-			p->amp = (tic_amp_abs + toc_amp_abs) / 2;
+			p->amp_valid = 1;
+			p->amp = amp_abs;
 			p->tic_pulse = tic_pulse;
 			p->toc_pulse = toc_pulse;
 			p->be = p->period/2 - fabs(p->toc - p->tic + p->tic_pulse - p->toc_pulse);
@@ -884,6 +897,9 @@ static void compute_amplitude(struct processing_buffers *p, double la)
 			debug("amp rejected\n");
 next_threshold:	threshold *= 1.4;
 	}
+	/* p->amp conserva la última estimación; amp_valid dice si pasó la
+	 * validación (135-360 grados con el lift angle dado). -1 = nunca
+	 * se midieron pulsos. */
 	if(p->amp < 0) debug("amp failed\n");
 }
 
@@ -975,7 +991,10 @@ void process(struct processing_buffers *p, int bph, double la, int light)
 {
 	prepare_data(p, !light);
 	p->ready = !compute_period(p,bph);
-	if(p->ready && p->period >= p->sample_rate / 2) {
+	/* Limit to 20% greater when period is known, or 500 ms when guessing period */
+	const int min_bph = bph ? bph : TYP_BPH;
+	const int max_period = (int)(1.2 * 3600 * 2) * p->sample_rate / min_bph;
+	if(p->ready && p->period >= max_period) {
 		debug("Detected period too long\n");
 		p->ready = 0;
 	}

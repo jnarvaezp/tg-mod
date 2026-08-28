@@ -122,6 +122,8 @@ Uso: menú Command → «Open recording…» para analizar un WAV sin micrófono
 - Ganancia 0.1–100 (atenuación) y medidor de nivel en vivo con alerta CLIP.
 - Emparejamiento robusto de dispositivo (ignora `(hw:X,Y)`), aviso de fallback
   y refresco de la lista.
+- Amplitud visible aunque esté fuera del rango físico (135–360°), con
+  marcador `*` (baja = desgaste/poca cuerda; alta = knocking).
 - Pendiente: SNR/indicadores más finos, sugerencia automática de ganancia,
   control del volumen de captura ALSA.
 

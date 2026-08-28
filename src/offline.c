@@ -98,14 +98,15 @@ int analyze_audio_file(const char *path, int bph, double la, double cal, struct 
 		res->guessed_bph = guessed;
 		res->rate = (7200 / (guessed * period / sr_eff) - 1) * 24 * 3600;
 		res->be = fabs(p[best].be) * 1000 / sr_eff;
-		res->amp = la * p[best].amp;
-		if(res->amp < 135 || res->amp > 360) res->amp = 0;
+		res->amp = p[best].amp < 0 ? 0 : la * p[best].amp;
+		res->amp_valid = p[best].amp_valid;
 		res->signal = any;
 	} else {
 		res->guessed_bph = bph ? bph : DEFAULT_BPH;
 		res->rate = 0;
 		res->be = 0;
 		res->amp = 0;
+		res->amp_valid = 0;
 	}
 
 	for(i = 0; i < NSTEPS; i++) pb_destroy(&p[i]);
