@@ -40,8 +40,14 @@ Record the microphone to a WAV with the \fBRecord to file...\fP menu item.
 Open a WAV with \fBOpen recording...\fP to analyze it without live audio.
 The debug build also supports \fBtg-timer-dbg analyze file.wav\fP for
 headless analysis.
+.SH WATCH DATABASE
+The left panel is the watchmaker's logbook: create watches, record
+measurement sessions (tagged with position and configuration) and browse
+the per-watch history. Data is stored in \fB~/tg-data/tg.db\fP (SQLite).
+Sessions can be deleted from the history with \fBDelete session\fP.
 .SH FILES
 \fB~/tg-logs/\fP contains session logs and exported reports.
+\fB~/tg-data/tg.db\fP is the watch database (SQLite).
 .SH SEE ALSO
 Full guide: \fB/usr/share/doc/tg/USAGE.md\fP (Spanish) and
 \fB/usr/share/doc/tg/USAGE.en.md\fP (English).

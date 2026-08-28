@@ -63,7 +63,10 @@ en particular el procedimiento de calibración está descrito en
 - **Base de datos de relojes**: cuaderno del relojero — registro persistente
   de relojes e historial de sesiones en SQLite (`~/tg-data/tg.db`). El panel
   izquierdo permite crear relojes, grabar sesiones de medición (etiquetadas
-  con posición y configuración) y consultar el historial por reloj.
+  con posición y configuración), consultar el historial por reloj y borrar
+  sesiones individuales.
+- **Suite de pruebas**: `make check` ejecuta 7 módulos de test (WAV, session
+  log, regresión DSP, estadísticas, informe, JSON, base de datos).
 - **Suite de pruebas**: `make check` (módulo WAV, session log, regresión DSP
   con clips sintéticos, módulos de estadísticas e informe).
 

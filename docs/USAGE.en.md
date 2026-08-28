@@ -224,7 +224,10 @@ large variations point to pivots, hairspring or balance problems.
   (bph, lift angle, cal, gain, cutoff).
 - **History**: the panel table shows all sessions of the selected watch
   with their date — track the evolution of the regulation (before/after a
-  repair, for example).
+  repair, for example). Select a row and use *Delete session* to remove it
+  from the history.
+- Statistics show the rate with an explicit sign (+/− in s/d); sessions
+  captured without a valid signal show `---`.
 - The database lives in `~/tg-data/tg.db` (SQLite).
 
 ## 8. Troubleshooting

@@ -232,7 +232,10 @@ apuntan a pivotes, hairspring o balance en mal estado.
   angle, cal, gain, cutoff).
 - **Historial**: la tabla del panel muestra todas las sesiones del reloj
   seleccionado con su fecha — así sigues la evolución de la regulación
-  (antes/después de una reparación, por ejemplo).
+  (antes/después de una reparación, por ejemplo). Selecciona una fila y usa
+  *Delete session* para borrarla del historial.
+- Las estadísticas muestran el rate con signo (+/− en s/d); las sesiones
+  capturadas sin señal válida muestran `---`.
 - La base vive en `~/tg-data/tg.db` (SQLite).
 
 ## 8. Resolución de problemas

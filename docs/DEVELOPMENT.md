@@ -71,6 +71,7 @@ git branch -d feature/<nombre>
 | `report.c` | Informe por posición (CSV + PDF Cairo) | stats, cairo |
 | `json.c` | Writer + parser JSON mínimo | — |
 | `watchdb.c` | Registro de relojes y sesiones (SQLite, `~/tg-data/tg.db`) | SQLite, stats, json |
+| `watch_panel.c` | UI del cuaderno del relojero (panel izquierdo) | watchdb, GTK |
 
 ## Guías
 

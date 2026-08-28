@@ -8,20 +8,25 @@ Premisas de trabajo: ver `docs/DEVELOPMENT.md`.
 
 ## Estado actual
 
-- **Master** en `37cceb6` (pusheado a `origin` = fork propio). Sin ramas
+- **Master** en `d064d10` (pusheado a `origin` = fork propio). Sin ramas
   feature pendientes de integrar; todas las completadas se eliminaron.
 - Fases completadas: 0 (integración del trabajo pendiente), 1 (grabación +
   análisis offline), 1.5 (session log + verbose), 2 (tests de regresión DSP),
   3-base (calidad de señal), 4 (estadísticas y tendencia), 5 (multi-posición
-  + informe).
-- Características existentes: rate (s/d), beat error (ms), amplitud (grados),
-  BPH, calibración automática (~15 min), paperstrip, formas de onda tic/toc y
-  periodo, espectro en vivo, snapshots en pestañas, guardado/carga `.tgj`,
-  persistencia de configuración (INI), grabación WAV, análisis offline
-  (`--analyze`), session log (JSON/CSV/raw), control de ganancia con medidor
-  de nivel y selección robusta de dispositivo, estadísticas en vivo con
-  gráfico de tendencia, posiciones e informe (CSV/PDF), suite de pruebas
-  (`make check`).
+  + informe), 5.5a (watch-db), **5.5b (watch-panel)**, 7a y 7b (ports de
+  xyzzy42: BPH bajos, sigma, paperstrip v2, eventos tic/toc, overlay de
+  amplitud), fix del informe vacío y estabilización (segfault de reinicio).
+- Características existentes: rate (s/d), beat error (ms), amplitud (grados,
+  visible incluso fuera de rango), BPH (8100–72000), calibración automática
+  (~15 min), paperstrip v2 (zoom, timestamps, tics en colores, overlay de
+  amplitud), formas de onda tic/toc y periodo, espectro en vivo, snapshots
+  en pestañas, guardado/carga `.tgj`, persistencia de configuración (INI),
+  grabación WAV, análisis offline (`--analyze`), session log (JSON/CSV/raw),
+  control de ganancia con medidor de nivel y selección robusta de
+  dispositivo, estadísticas en vivo con gráfico de tendencia, posiciones e
+  informe (CSV/PDF), **cuaderno del relojero** (registro de relojes,
+  sesiones con snapshot de configuración, historial con borrado) y suite de
+  pruebas (`make check`, 7 módulos).
 - Documentación: README bilingüe (README.md / README.es.md), guía completa
   (docs/USAGE.md / docs/USAGE.en.md), spec del registro de relojes
   (docs/superpowers/specs/2026-08-24-watch-db-design.md).
@@ -68,6 +73,10 @@ incluye la fila "none" (ciclos sin etiquetar) y la fila "Total", y escribe
   posición del selector "pos", nota opcional y snapshot de configuración).
 - Base abierta al arrancar (`~/tg-data/tg.db`, creada si falta) y cerrada
   al salir.
+- Estadísticas de sesión con signo explícito (+/− en s/d) y `---` para
+  sesiones capturadas sin detección.
+- Botón *Delete session* para borrar del historial la sesión seleccionada
+  (con confirmación).
 - Pendiente (iteración siguiente): export del historial por reloj (CSV/PDF),
   gráfico de evolución por sesión, edición de defaults por reloj (bph /
   lift angle) desde la UI.

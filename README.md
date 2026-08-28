@@ -62,9 +62,10 @@ in particular the calibration procedure is described at
 - **Watch database**: watchmaker's logbook — persistent watch registry and
   session history in SQLite (`~/tg-data/tg.db`). The left panel lets you
   create watches, record measurement sessions (tagged with position and
-  configuration) and browse the per-watch history.
-- **Testing suite**: `make check` (WAV module, session log, DSP regression
-  with synthetic clips, stats and report modules).
+  configuration), browse the per-watch history and delete individual
+  sessions.
+- **Testing suite**: `make check` runs 7 test modules (WAV, session log, DSP
+  regression, stats, report, JSON, watch database).
 
 ## Quick start
 
