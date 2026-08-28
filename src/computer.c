@@ -152,7 +152,7 @@ static void compute_events(struct computer *c)
 				if(++s->events_wp == s->events_count) s->events_wp = 0;
 				s->events[s->events_wp] = p->events[i].pos;
 				s->events_tictoc[s->events_wp] = p->events[i].tictoc;
-				debug("event at %llu\n", s->events[s->events_wp]);
+				debugv("event at %llu\n", s->events[s->events_wp]);
 			}
 		s->events_from = p->timestamp - ceil(p->period);
 	} else {
