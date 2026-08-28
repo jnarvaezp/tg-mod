@@ -20,6 +20,7 @@
 #include "watch_panel.h"
 #include "watchdb.h"
 #include "stats.h"
+#include "report.h"
 #include <ctype.h>
 #include <time.h>
 
@@ -52,6 +53,11 @@ static void update_sensitivity(struct main_window *w)
 	gtk_widget_set_sensitive(w->session_start_button,
 	                         w->selected_watch_id >= 0 && !w->session_active);
 	gtk_widget_set_sensitive(w->session_finish_button, w->session_active);
+	gtk_widget_set_sensitive(w->watch_defaults_button,
+	                         w->selected_watch_id >= 0 && !w->session_active);
+	gtk_widget_set_sensitive(w->evolution_button, w->selected_watch_id >= 0);
+	gtk_widget_set_sensitive(w->history_export_button,
+	                         w->selected_watch_id >= 0 && !w->session_active);
 }
 
 static void update_session_status(struct main_window *w)
@@ -150,22 +156,224 @@ static void on_delete_session_clicked(GtkButton *button, struct main_window *w)
 	rebuild_session_tree(w);
 }
 
+static void on_save_defaults_clicked(GtkButton *button, struct main_window *w)
+{
+	int idx;
+	UNUSED(button);
+	idx = find_watch_index(w->selected_watch_id);
+	if(idx < 0) return;
+	const struct watchdb_watch *ww = watchdb_watch_at(idx);
+	if(!ww) return;
+	if(watchdb_rename_watch(idx, ww->name, ww->brand, ww->notes, w->bph, w->la))
+		error("Failed to save watch defaults");
+}
+
+/* Copia de las sesiones para el diálogo de evolución. */
+struct evo_data {
+	char name[64];
+	int n;
+	struct watchdb_session *s;
+};
+
+static void evo_data_free(gpointer data)
+{
+	struct evo_data *ed = data;
+	free(ed->s);
+	free(ed);
+}
+
+static gboolean evo_draw_event(GtkWidget *widget, cairo_t *cr, gpointer data)
+{
+	struct evo_data *ed = g_object_get_data(G_OBJECT(widget), "evo-data");
+	UNUSED(data);
+	if(!ed || ed->n < 1) return FALSE;
+
+	GtkAllocation temp;
+	gtk_widget_get_allocation(widget, &temp);
+	const int width = temp.width, height = temp.height;
+
+	cairo_set_source_rgb(cr, 1, 1, 1);
+	cairo_paint(cr);
+
+	double maxabs = 10;
+	int i;
+	for(i = 0; i < ed->n; i++) {
+		double a = fabs(ed->s[i].mean);
+		if(a > maxabs) maxabs = a;
+	}
+	maxabs *= 1.15;
+	if(maxabs < 10) maxabs = 10;
+
+	const double mid = height / 2.0;
+	const double scale = (height - 50) / 2.0 / maxabs;
+	const double x0 = 40, xw = width - 60;
+
+	/* línea cero */
+	cairo_set_line_width(cr, 1);
+	cairo_set_source_rgb(cr, 0.85, 0.85, 0.85);
+	cairo_move_to(cr, x0, mid);
+	cairo_line_to(cr, x0 + xw, mid);
+	cairo_stroke(cr);
+	/* límites ±maxabs */
+	cairo_set_source_rgb(cr, 0.92, 0.92, 0.92);
+	cairo_move_to(cr, x0, mid - scale * maxabs);
+	cairo_line_to(cr, x0 + xw, mid - scale * maxabs);
+	cairo_move_to(cr, x0, mid + scale * maxabs);
+	cairo_line_to(cr, x0 + xw, mid + scale * maxabs);
+	cairo_stroke(cr);
+
+	/* polyline del rate por sesión */
+	cairo_set_source_rgb(cr, 0, 0.6, 0);
+	cairo_set_line_width(cr, 1.5);
+	for(i = 0; i < ed->n; i++) {
+		const double x = x0 + (ed->n > 1 ? (double)i / (ed->n - 1) * xw : xw / 2);
+		const double y = mid - ed->s[i].mean * scale;
+		if(!i) cairo_move_to(cr, x, y);
+		else cairo_line_to(cr, x, y);
+	}
+	cairo_stroke(cr);
+
+	/* puntos */
+	cairo_set_source_rgb(cr, 0, 0, 0);
+	for(i = 0; i < ed->n; i++) {
+		const double x = x0 + (ed->n > 1 ? (double)i / (ed->n - 1) * xw : xw / 2);
+		const double y = mid - ed->s[i].mean * scale;
+		cairo_arc(cr, x, y, 3, 0, 2 * M_PI);
+		cairo_stroke(cr);
+	}
+
+	/* resumen */
+	char txt[160];
+	double sum = 0, sq = 0;
+	for(i = 0; i < ed->n; i++) { sum += ed->s[i].mean; sq += ed->s[i].mean * ed->s[i].mean; }
+	double mean = sum / ed->n;
+	double sigma = ed->n > 1 ? sqrt((sq - ed->n * mean * mean) / (ed->n - 1)) : 0;
+	snprintf(txt, sizeof(txt), "%s:  sessions %d,  mean %+.1f s/d,  sigma %.1f",
+	         ed->name, ed->n, mean, sigma);
+	cairo_set_source_rgb(cr, 0, 0, 0);
+	cairo_select_font_face(cr, "sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+	cairo_set_font_size(cr, 11);
+	cairo_move_to(cr, x0, height - 8);
+	cairo_show_text(cr, txt);
+	return FALSE;
+}
+
+static void on_evolution_clicked(GtkButton *button, struct main_window *w)
+{
+	UNUSED(button);
+	if(w->selected_watch_id < 0) return;
+	watchdb_load_sessions(w->selected_watch_id);
+	int n = watchdb_session_count();
+	if(!n) { error("No sessions recorded for this watch"); return; }
+
+	struct evo_data *ed = malloc(sizeof(*ed));
+	if(!ed) return;
+	snprintf(ed->name, sizeof(ed->name), "%s", w->selected_watch_name);
+	ed->n = n;
+	ed->s = malloc(n * sizeof(*ed->s));
+	int i;
+	for(i = 0; i < n; i++) {
+		const struct watchdb_session *s = watchdb_session_at(i);
+		if(s) ed->s[i] = *s;
+	}
+
+	GtkWidget *dlg = gtk_dialog_new_with_buttons("Rate evolution",
+		GTK_WINDOW(w->window), GTK_DIALOG_DESTROY_WITH_PARENT,
+		"Close", GTK_RESPONSE_CLOSE, NULL);
+	GtkWidget *da = gtk_drawing_area_new();
+	gtk_widget_set_size_request(da, 640, 400);
+	g_object_set_data_full(G_OBJECT(dlg), "evo-data", ed, evo_data_free);
+	g_signal_connect(da, "draw", G_CALLBACK(evo_draw_event), NULL);
+	gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(dlg))),
+		da, TRUE, TRUE, 0);
+	gtk_widget_show_all(dlg);
+	gtk_dialog_run(GTK_DIALOG(dlg));
+	gtk_widget_destroy(dlg);
+}
+
+static void on_export_history_clicked(GtkButton *button, struct main_window *w)
+{
+	int idx, n, err = 0;
+	const struct watchdb_watch *ww;
+	char *dir, safe[64], fullbase[256], path[1024];
+	time_t t;
+
+	UNUSED(button);
+	idx = find_watch_index(w->selected_watch_id);
+	if(idx < 0) { error("Select a watch first"); return; }
+	ww = watchdb_watch_at(idx);
+	if(!ww) return;
+
+	n = watchdb_session_count();
+	if(!n) { error("No sessions recorded for this watch"); return; }
+
+	dir = g_build_filename(g_get_home_dir(), "tg-logs", NULL);
+	g_mkdir_with_parents(dir, 0755);
+	t = time(NULL);
+	{
+		char ts[32];
+		strftime(ts, sizeof(ts), "%Y%m%d-%H%M%S", localtime(&t));
+		/* Nombre de archivo seguro: alfanumérico + guiones. */
+		char nm[64];
+		size_t i, o = 0;
+		snprintf(nm, sizeof(nm), "%s", w->selected_watch_name);
+		for(i = 0; nm[i] && o + 1 < sizeof(safe); i++)
+			safe[o++] = (nm[i] >= 'a' && nm[i] <= 'z') || (nm[i] >= 'A' && nm[i] <= 'Z') ||
+			            (nm[i] >= '0' && nm[i] <= '9') ? nm[i] : '-';
+		safe[o] = 0;
+		snprintf(fullbase, sizeof(fullbase), "tg-history-%s-%s", safe, ts);
+	}
+
+	snprintf(path, sizeof(path), "%s/%s.csv", dir, fullbase);
+	if(report_write_history_csv(path, w->selected_watch_name,
+	                            watchdb_session_at(0), n)) err++;
+	snprintf(path, sizeof(path), "%s/%s.pdf", dir, fullbase);
+	if(report_write_history_pdf(path, w->selected_watch_name,
+	                            watchdb_session_at(0), n)) err++;
+	if(err)
+		error("History export: %d file(s) failed in %s", err, dir);
+	else {
+		GtkWidget *d = gtk_message_dialog_new(GTK_WINDOW(w->window), 0,
+			GTK_MESSAGE_INFO, GTK_BUTTONS_CLOSE,
+			"History exported to\n%s/%s.{csv,pdf}", dir, fullbase);
+		gtk_dialog_run(GTK_DIALOG(d));
+		gtk_widget_destroy(d);
+	}
+	g_free(dir);
+}
+
 static void on_watch_selected(GtkListBox *box, GtkListBoxRow *row, struct main_window *w)
 {
 	UNUSED(box);
 
 	if(row) {
 		int i;
+		const struct watchdb_watch *ww = NULL;
 		w->selected_watch_id = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(row), "watch-id"));
 		w->selected_watch_name[0] = '\0';
 		for(i = 0; i < watchdb_watch_count(); i++) {
-			const struct watchdb_watch *ww = watchdb_watch_at(i);
-			if(ww && ww->id == w->selected_watch_id) {
-				snprintf(w->selected_watch_name, sizeof(w->selected_watch_name), "%s", ww->name);
-				break;
-			}
+			const struct watchdb_watch *x = watchdb_watch_at(i);
+			if(x && x->id == w->selected_watch_id) { ww = x; break; }
 		}
 		watchdb_load_sessions(w->selected_watch_id);
+
+		/* Preload the watch's analysis defaults into the UI. */
+		if(ww) {
+			snprintf(w->selected_watch_name, sizeof(w->selected_watch_name), "%s", ww->name);
+			if(ww->bph > 0) {
+				int j, current = 0;
+				for(j = 0; preset_bph[j]; j++)
+					if(ww->bph == preset_bph[j]) { current = j + 1; break; }
+				gtk_combo_box_set_active(GTK_COMBO_BOX(w->bph_combo_box), current);
+				if(!current) {
+					char t[32];
+					snprintf(t, sizeof(t), "%d", ww->bph);
+					gtk_entry_set_text(GTK_ENTRY(gtk_bin_get_child(GTK_BIN(w->bph_combo_box))), t);
+				}
+			}
+			if(ww->lift_angle > 0)
+				gtk_spin_button_set_value(GTK_SPIN_BUTTON(w->la_spin_button), ww->lift_angle);
+		}
 	} else {
 		w->selected_watch_id = -1;
 		w->selected_watch_name[0] = '\0';
@@ -380,6 +588,12 @@ GtkWidget *watch_panel_build(struct main_window *w)
 	g_signal_connect(w->watch_delete_button, "clicked", G_CALLBACK(on_delete_watch_clicked), w);
 	gtk_widget_set_sensitive(w->watch_delete_button, FALSE);
 	gtk_box_pack_start(GTK_BOX(hbox), w->watch_delete_button, TRUE, FALSE, 0);
+	w->watch_defaults_button = gtk_button_new_with_label("Save cfg");
+	gtk_widget_set_tooltip_text(w->watch_defaults_button,
+		"Save the current BPH and lift angle as this watch's defaults");
+	g_signal_connect(w->watch_defaults_button, "clicked", G_CALLBACK(on_save_defaults_clicked), w);
+	gtk_widget_set_sensitive(w->watch_defaults_button, FALSE);
+	gtk_box_pack_start(GTK_BOX(hbox), w->watch_defaults_button, TRUE, FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
 
 	gtk_box_pack_start(GTK_BOX(vbox),
@@ -437,6 +651,20 @@ GtkWidget *watch_panel_build(struct main_window *w)
 		GtkTreeSelection *sel = gtk_tree_view_get_selection(GTK_TREE_VIEW(w->session_tree));
 		g_signal_connect(sel, "changed", G_CALLBACK(on_session_selected), w);
 	}
+
+	hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
+	w->evolution_button = gtk_button_new_with_label("Evolution");
+	gtk_widget_set_tooltip_text(w->evolution_button, "Rate evolution across sessions");
+	g_signal_connect(w->evolution_button, "clicked", G_CALLBACK(on_evolution_clicked), w);
+	gtk_widget_set_sensitive(w->evolution_button, FALSE);
+	gtk_box_pack_start(GTK_BOX(hbox), w->evolution_button, TRUE, FALSE, 0);
+	w->history_export_button = gtk_button_new_with_label("Export history...");
+	gtk_widget_set_tooltip_text(w->history_export_button,
+		"Export this watch's session history to CSV and PDF");
+	g_signal_connect(w->history_export_button, "clicked", G_CALLBACK(on_export_history_clicked), w);
+	gtk_widget_set_sensitive(w->history_export_button, FALSE);
+	gtk_box_pack_start(GTK_BOX(hbox), w->history_export_button, TRUE, FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
 
 	w->session_timeout = g_timeout_add(1000, session_tick, w);
 

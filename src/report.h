@@ -20,6 +20,7 @@
 #define TG_REPORT_H
 
 #include "stats.h"
+#include "watchdb.h"
 
 /* none + 6 posiciones + total */
 #define REPORT_MAX_ROWS (POSITION_CR + 2)
@@ -40,5 +41,11 @@ int report_write_csv(const char *path, const struct report_row *rows, int n);
 
 /* Escribe el informe PDF (A4, Cairo) en `path`. Devuelve 0 = ok. */
 int report_write_pdf(const char *path, const struct report_row *rows, int n);
+
+/* Historial de sesiones de un reloj: CSV y PDF. Devuelve 0 = ok. */
+int report_write_history_csv(const char *path, const char *watch_name,
+                             const struct watchdb_session *sessions, int n);
+int report_write_history_pdf(const char *path, const char *watch_name,
+                             const struct watchdb_session *sessions, int n);
 
 #endif

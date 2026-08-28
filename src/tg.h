@@ -373,6 +373,9 @@ struct main_window {
 	char selected_watch_name[64];
 	int64_t selected_session_id;         /* sesión seleccionada en el historial, -1 = ninguna */
 	GtkWidget *session_delete_button;
+	GtkWidget *watch_defaults_button;    /* guarda bph/lift actuales como defaults del reloj */
+	GtkWidget *history_export_button;    /* export CSV/PDF del historial */
+	GtkWidget *evolution_button;         /* gráfico de evolución del rate por sesión */
 	int session_active;
 	uint64_t session_start_ms;
 	guint session_timeout;
