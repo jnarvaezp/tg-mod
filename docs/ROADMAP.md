@@ -128,17 +128,19 @@ Uso: menú Command → «Open recording…» para analizar un WAV sin micrófono
   `process()`, algo.c:978, rechaza periodos ≥ 0.5 s a 44.1 kHz — limitación
   conocida, pendiente de futuro ajuste).
 
-## Fase 3 — Calidad de señal / diagnóstico (parcialmente completada)
+## Fase 3 — Calidad de señal / diagnóstico (completada)
 
-**Rama:** `feature/signal-quality` — **Estado:** implementada la base.
+**Ramas:** `feature/signal-quality` + `feature/auto-gain` — **Estado:** completada.
 
 - Ganancia 0.1–100 (atenuación) y medidor de nivel en vivo con alerta CLIP.
 - Emparejamiento robusto de dispositivo (ignora `(hw:X,Y)`), aviso de fallback
   y refresco de la lista.
 - Amplitud visible aunque esté fuera del rango físico (135–360°), con
   marcador `*` (baja = desgaste/poca cuerda; alta = knocking).
-- Pendiente: SNR/indicadores más finos, sugerencia automática de ganancia,
-  control del volumen de captura ALSA.
+- **Botón Auto**: ajusta el gain para dejar el pico de entrada en ~0.8.
+- **SNR del tic** en dB junto al medidor de nivel (mayor = medición más
+  fiable).
+- Pendiente (opcional): volumen de captura ALSA (diferido).
 
 ## Fase 4 — Estadísticas y tendencia (completada)
 

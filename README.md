@@ -54,10 +54,10 @@ in particular the calibration procedure is described at
 - **Session log**: *Save session log* writes the computation cycles to
   `~/tg-logs/tg-session-<timestamp>.{json,csv,raw}`; `tg-timer debug` /
   `debug full` enable verbose console output in any build.
-- **Signal quality**: gain control 0.1–100 (attenuation and amplification),
-  live level meter with **CLIP** indicator, robust input device selection
-  (ignores the ALSA `(hw:X,Y)` suffix, refresh button, visible fallback
-  warning).
+- **Signal quality**: gain control 0.1–100 (attenuation and amplification)
+  with an **Auto** button, live level meter with **CLIP** indicator, tic SNR
+  readout, robust input device selection (ignores the ALSA `(hw:X,Y)`
+  suffix, refresh button, visible fallback warning).
 - **Live statistics**: rate-trend chart (last ~5 minutes) with mean, standard
   deviation, min and max in s/d.
 - **Positions and report**: "pos" selector to tag measurements (dial up/down,

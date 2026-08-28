@@ -57,7 +57,7 @@ en particular el procedimiento de calibración está descrito en
   `~/tg-logs/tg-session-<timestamp>.{json,csv,raw}`; `tg-timer debug` /
   `debug full` activan la salida verbosa de consola en cualquier build.
 - **Calidad de señal**: control de ganancia 0.1–100 (atenuación y
-  amplificación), medidor de nivel en vivo con indicador **CLIP**, selección
+  amplificación), medidor de nivel en vivo con indicador **CLIP**, **botón Auto** de ganancia y SNR del tic en dB, selección
   robusta de dispositivo (ignora el sufijo ALSA `(hw:X,Y)`, botón de refresco,
   aviso visible de fallback).
 - **Estadísticas en vivo**: gráfico de tendencia del rate (últimos ~5 min)

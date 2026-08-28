@@ -131,13 +131,25 @@ The app indicates whether it is getting a valid measurement:
 
 Range **0.1–100**: 1.0 = unchanged, < 1 attenuates, > 1 amplifies.
 
+- **Auto button**: measures the peak of the last ~0.5 s and adjusts the gain
+  to bring it to ~0.8 — one click and done.
 - **Rule**: adjust so the level bar shows a **peak ≈ 0.6–0.9** and **no
   CLIP**.
 - Peak > 0.98 (CLIP): the signal saturates and distorts — lower the gain or
-  the system input level.
+  the system input level. If CLIP persists at minimum gain, lower the OS
+  input level.
 - Peak < 0.2: the signal may be too weak for a stable measurement.
 - With a timegrapher microphone (e.g. TGBC, with built-in amplifier) a gain
   of **0.3–0.7** usually suffices.
+
+### SNR (signal quality)
+
+Next to the level meter the app shows the **tick SNR** (signal-to-noise
+ratio in dB, computed by the DSP each cycle):
+
+- **> 20 dB**: reliable measurement.
+- **10–20 dB**: fair — check the watch position and ambient noise.
+- **< 10 dB**: poor signal; the displayed rate may not be reliable.
 
 ### Cutoff (filter cutoff frequency)
 

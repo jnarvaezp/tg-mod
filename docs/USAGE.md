@@ -137,13 +137,25 @@ La app indica si está consiguiendo una medición válida:
 
 Rango **0.1–100**: 1.0 = sin cambio, < 1 atenúa, > 1 amplifica.
 
+- **Botón Auto**: mide el pico de los últimos ~0.5 s y ajusta el gain para
+  dejarlo en ~0.8 — un clic y listo.
 - **Regla**: ajusta para que la barra de nivel muestre un **pico ≈ 0.6–0.9**
   y **sin CLIP**.
 - Pico > 0.98 (CLIP): la señal satura y se distorsiona — baja el gain o el
-  nivel de entrada del sistema.
+  nivel de entrada del sistema. Si el CLIP persiste con gain mínimo, baja
+  el nivel del sistema operativo.
 - Pico < 0.2: la señal puede ser demasiado débil para una medición estable.
 - Con un micrófono de timegrapher (p. ej. TGBC, con amplificador integrado)
   suele bastar gain **0.3–0.7**.
+
+### SNR (calidad de la señal)
+
+Junto al medidor de nivel se muestra el **SNR del tic** (relación
+señal/ruido en dB, calculado por el DSP a cada ciclo):
+
+- **> 20 dB**: medición fiable.
+- **10–20 dB**: regular — revisa la posición del reloj y el ruido ambiente.
+- **< 10 dB**: señal pobre; el rate mostrado puede no ser fiable.
 
 ### Cutoff (frecuencia de corte del filtro)
 
