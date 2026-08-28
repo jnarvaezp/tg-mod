@@ -1,5 +1,12 @@
 # tg — Programa para cronometrar relojes mecánicos
 
+[![Versión](https://img.shields.io/github/v/tag/jnarvaezp/tg-mod?label=versión&sort=semver)](https://github.com/jnarvaezp/tg-mod/tags)
+[![Licencia](https://img.shields.io/badge/licencia-GPL--2.0-blue)](LICENSE)
+[![Lenguaje](https://img.shields.io/badge/lenguaje-C99-informational)](https://github.com/jnarvaezp/tg-mod)
+[![Plataforma](https://img.shields.io/badge/plataforma-Linux%20%7C%20Windows%20%7C%20macOS-lightgrey)](#instalación)
+[![Tests](https://img.shields.io/badge/tests-make%20check-success)](#pruebas)
+[![Docs](https://img.shields.io/badge/docs-ES%20%7C%20EN-green)](#documentación)
+
 [![Build Status](https://travis-ci.org/vacaboja/tg.svg?branch=master)](https://travis-ci.org/vacaboja/tg)
 
 **Tg** es un cronocomparador (timegrapher) para relojes mecánicos: escucha el

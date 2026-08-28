@@ -8,8 +8,9 @@ Premisas de trabajo: ver `docs/DEVELOPMENT.md`.
 
 ## Estado actual
 
-- **Master** en `d064d10` (pusheado a `origin` = fork propio). Sin ramas
-  feature pendientes de integrar; todas las completadas se eliminaron.
+- **Versión 0.7.0** (tag `v0.7.0`), **master** pusheado a `origin` = fork
+  propio. Sin ramas feature pendientes de integrar; todas las completadas se
+  eliminaron.
 - Fases completadas: 0 (integración del trabajo pendiente), 1 (grabación +
   análisis offline), 1.5 (session log + verbose), 2 (tests de regresión DSP),
   3-base (calidad de señal), 4 (estadísticas y tendencia), 5 (multi-posición

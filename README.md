@@ -1,5 +1,12 @@
 # tg — A program for timing mechanical watches
 
+[![Version](https://img.shields.io/github/v/tag/jnarvaezp/tg-mod?label=version&sort=semver)](https://github.com/jnarvaezp/tg-mod/tags)
+[![License](https://img.shields.io/badge/license-GPL--2.0-blue)](LICENSE)
+[![Language](https://img.shields.io/badge/language-C99-informational)](https://github.com/jnarvaezp/tg-mod)
+[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20macOS-lightgrey)](#install-instructions)
+[![Tests](https://img.shields.io/badge/tests-make%20check-success)](#testing)
+[![Docs](https://img.shields.io/badge/docs-ES%20%7C%20EN-green)](#documentation)
+
 [![Build Status](https://travis-ci.org/vacaboja/tg.svg?branch=master)](https://travis-ci.org/vacaboja/tg)
 
 **Tg** is a timegrapher for mechanical watches: it listens to the noise of a
