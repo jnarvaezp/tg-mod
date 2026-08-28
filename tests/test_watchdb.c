@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include "watchdb.h"
+#include "stats.h"
 
 static int failures = 0;
 #define CHECK(cond, msg) do { if(!(cond)) { fprintf(stderr, "FAIL: %s\n", msg); failures++; } } while(0)
@@ -38,7 +39,47 @@ int main(void)
 
 	CHECK(watchdb_remove_watch(0) == 0, "remove");
 	CHECK(watchdb_watch_count() == 1, "one left");
-	CHECK(watchdb_watch_at(0) && !strcmp(watchdb_watch_at(0)->name, "Longines 280"), "remaining");
+	const struct watchdb_watch *w1 = watchdb_watch_at(0);
+	CHECK(w1 && !strcmp(w1->name, "Longines 280"), "remaining");
+
+	/* Sesiones */
+	int64_t wid = w1->id;
+	CHECK(watchdb_load_sessions(wid) == 0, "load sessions");
+	CHECK(watchdb_session_count() == 0, "no sessions");
+	CHECK(watchdb_capture_session(wid, 1000, 2000, POSITION_DU, "prueba",
+	                              21600, 52.0, 0, 0.5, 3000) == 0, "capture");
+	CHECK(watchdb_session_count() == 1, "one session");
+	const struct watchdb_session *ss = watchdb_session_at(0);
+	CHECK(ss->position == POSITION_DU && ss->bph == 21600 && fabs(ss->gain - 0.5) < 1e-9, "session fields");
+	CHECK(watchdb_capture_session(wid, 3000, 4000, POSITION_DD, "", 21600, 52.0, 0, 0.5, 3000) == 0, "capture 2");
+	CHECK(watchdb_session_count() == 2, "two sessions");
+
+	/* Persistencia: cerrar y reabrir */
+	CHECK(watchdb_close() == 0, "close 2");
+	CHECK(watchdb_open(dbpath) == 0, "reopen 2");
+	CHECK(watchdb_load_sessions(wid) == 0, "load sessions 2");
+	CHECK(watchdb_session_count() == 2, "sessions persisted");
+
+	/* Export JSON */
+	char jpath[512];
+	snprintf(jpath, sizeof(jpath), "%s/export.json", dir);
+	CHECK(watchdb_export_watch_json(wid, jpath) == 0, "export ok");
+	{
+		FILE *f = fopen(jpath, "r");
+		CHECK(f != NULL, "json exists");
+		if(f) {
+			char buf[8192] = {0};
+			size_t r = fread(buf, 1, sizeof(buf)-1, f);
+			buf[r] = 0;
+			fclose(f);
+			CHECK(strstr(buf, "\"sessions\"") != NULL, "json sessions");
+			CHECK(strstr(buf, "dial up") != NULL, "json position");
+			CHECK(strstr(buf, "\"name\":\"Longines 280\"") != NULL, "json watch name");
+		}
+	}
+	remove(jpath);
+	CHECK(watchdb_remove_session(watchdb_session_at(0)->id) == 0, "remove session");
+	CHECK(watchdb_session_count() == 1, "one session left");
 
 	watchdb_close();
 

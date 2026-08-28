@@ -46,4 +46,31 @@ int watchdb_rename_watch(int idx, const char *name, const char *brand,
                          const char *notes, int bph, double lift_angle);
 int watchdb_remove_watch(int idx);   /* borra el reloj y sus sesiones (CASCADE) */
 
+struct watchdb_session {
+	int64_t id;
+	int64_t watch_id;
+	uint64_t start_ms, end_ms;
+	int position;        /* POSITION_* */
+	char note[128];
+	int n;
+	double mean, sigma, min, max;
+	double mean_be, mean_amp;
+	int bph, cal;
+	double lift_angle, gain;
+	int cutoff;
+};
+
+int watchdb_load_sessions(int64_t watch_id);   /* carga el índice en memoria */
+int watchdb_session_count(void);
+const struct watchdb_session *watchdb_session_at(int i);
+/* Crea el registro: toma n/mean/sigma/min/max/mean_be/mean_amp de stats_summary(0)
+ * y la config actual de los parámetros. watch_id debe existir. 0 = ok. */
+int watchdb_capture_session(int64_t watch_id, uint64_t start_ms, uint64_t end_ms,
+                            int position, const char *note,
+                            int bph, double lift_angle, int cal, double gain, int cutoff);
+int watchdb_remove_session(int64_t session_id);
+
+/* Exporta un reloj + sus sesiones como JSON (vía json.c). 0 = ok. */
+int watchdb_export_watch_json(int64_t watch_id, const char *path);
+
 #endif
