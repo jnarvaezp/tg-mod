@@ -159,8 +159,15 @@ Port de [xyzzy42/tg](https://github.com/xyzzy42/tg) por **Trent Piepho** (GPL-2)
 - `conjf` para float complex y alocación FFTW uniforme.
 - Amplitud estimada visible aunque esté fuera del rango físico (135–360°),
   marcada con `*` y acotada a 720°.
-- Pendiente (7b): paperstrip v2 (zoom, timestamps, colores, overlay amplitud);
-  7c: tppm + procesamiento por paso.
+- Pendiente (7b-iii): tics con código de color tic/toc + historial de
+  amplitud + overlay sobre la cinta (requieren el sistema de eventos de 7b-i,
+  ya integrado).
+- **7b-i (hecho)**: sistema de eventos con tic/toc (`struct event`) a través
+  de algo.c → computer.c → snapshot → serializer (.tgj retrocompatible).
+- **7b-ii (hecho)**: paperstrip v2 — nuevo algoritmo de puntos, zoom slider
+  con ancla persistida, timestamps por minuto, fuentes escaladas, slope
+  oculto sin rate, punto parcial sin amplitud (usa nuestro `amp_valid`).
+  Parámetros de display persistidos en los .tgj.
 
 ## Fase 6 — i18n + pulido de UX
 
