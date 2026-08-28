@@ -620,6 +620,8 @@ GtkWidget *watch_panel_build(struct main_window *w)
 
 	hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
 	w->session_start_button = gtk_button_new_with_label(_("Start session"));
+	gtk_widget_set_tooltip_text(w->session_start_button,
+		"Start recording a measurement session for the selected watch");
 	g_signal_connect(w->session_start_button, "clicked", G_CALLBACK(on_start_session_clicked), w);
 	gtk_box_pack_start(GTK_BOX(hbox), w->session_start_button, TRUE, FALSE, 0);
 	w->session_finish_button = gtk_button_new_with_label(_("Finish & save"));

@@ -1152,6 +1152,8 @@ static void init_main_window(struct main_window *w)
 	label = gtk_label_new(_("gain"));
 	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 	w->gain_spin_button = gtk_spin_button_new_with_range(0.1, 100.0, 0.1);
+	gtk_widget_set_tooltip_text(w->gain_spin_button,
+		"Input gain: < 1 attenuates, > 1 amplifies (Auto adjusts it for you)");
 	gtk_spin_button_set_value(GTK_SPIN_BUTTON(w->gain_spin_button), w->gain);
 	gtk_spin_button_set_digits(GTK_SPIN_BUTTON(w->gain_spin_button), 1);
 	gtk_entry_set_width_chars(GTK_ENTRY(w->gain_spin_button), 5);
@@ -1169,6 +1171,8 @@ static void init_main_window(struct main_window *w)
 	label = gtk_label_new(_("cutoff"));
 	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 	w->cutoff_spin_button = gtk_spin_button_new_with_range(1000, 8000, 100);
+	gtk_widget_set_tooltip_text(w->cutoff_spin_button,
+		"Bandpass filter cutoff in Hz (higher = less low-frequency noise)");
 	gtk_spin_button_set_value(GTK_SPIN_BUTTON(w->cutoff_spin_button), w->filter_cutoff);
 	gtk_entry_set_width_chars(GTK_ENTRY(w->cutoff_spin_button), 5);
 	gtk_box_pack_start(GTK_BOX(hbox), w->cutoff_spin_button, FALSE, FALSE, 0);
@@ -1339,6 +1343,16 @@ static void init_main_window(struct main_window *w)
 	gtk_paned_pack2(GTK_PANED(w->paned), vbox, TRUE, FALSE);
 	gtk_paned_set_position(GTK_PANED(w->paned), 300);
 	gtk_container_add(GTK_CONTAINER(w->window), w->paned);
+
+	// Keyboard accelerators for the main actions
+	{
+		GtkAccelGroup *accel = gtk_accel_group_new();
+		gtk_window_add_accel_group(GTK_WINDOW(w->window), accel);
+		gtk_widget_add_accelerator(quit_item, "activate", accel,
+			GDK_KEY_q, GDK_CONTROL_MASK, GTK_ACCEL_VISIBLE);
+		gtk_widget_add_accelerator(w->save_item, "activate", accel,
+			GDK_KEY_s, GDK_CONTROL_MASK, GTK_ACCEL_VISIBLE);
+	}
 
 	gtk_window_maximize(GTK_WINDOW(w->window));
 	gtk_widget_show_all(w->window);
