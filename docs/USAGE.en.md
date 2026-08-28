@@ -29,8 +29,9 @@ period (tic+tock); `BPH = 7200 / period(seconds)`.
 - With **"guess"** the app tries to infer the BPH from the measurement
   (compared against presets).
 - If you know the watch's BPH, select it: detection is more robust.
-- **Note**: at 44.1 kHz the app cannot measure periods ≥ 0.5 s (BPH ≤ 14400).
-  Slow watches (pocket watches) are not supported yet.
+- **Note**: with a known BPH the guard accepts up to 20% over the nominal
+  period, so watches from ~8100 BPH (pocket watches) can be measured. When
+  guessing, the effective range starts at ~12000 BPH.
 
 ### Rate (s/d) — the accuracy
 
@@ -220,5 +221,5 @@ large variations point to pivots, hairspring or balance problems.
 | "Saved input device ... not found; falling back to default" | Mic was replugged (`hw:X,Y` changed) | Re-select the device in **mic** (↻ button) |
 | CLIP on | Signal saturates | Lower the gain or the system input level |
 | Odd rate (~+50 s/d) on a healthy watch | Real sample rate of the card is off | Run *Calibrate* (~15 min) |
-| Slow BPH (12000/14400) not detected | Limitation: periods ≥ 0.5 s at 44.1 kHz | Not available yet |
+| Slow BPH (12000/14400) not detected with "guess" | When guessing, the effective range starts at ~12000 BPH | Select the known BPH (with it, watches from 8100 BPH measure) |
 | Report export empty | Cycles without a tagged position | Select "pos", or use the "none"/total row (fixed) |

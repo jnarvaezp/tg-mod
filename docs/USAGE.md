@@ -29,8 +29,9 @@ El **número de semioscilaciones por hora** del volante: 18000, 21600, 28800,
 - Con **"guess"** la app intenta adivinar el BPH a partir de la medición
   (compara contra los presets).
 - Si sabes el BPH del reloj, selecciónalo: la detección es más robusta.
-- **Nota**: a 44.1 kHz la app no puede medir periodos ≥ 0.5 s (BPH ≤ 14400).
-  Para relojes lentos (pocket watches) la medición no está disponible.
+- **Nota**: con BPH conocido, el guard acepta hasta un 20% más del periodo
+  nominal, así que se miden relojes desde ~8100 BPH (pocket watches). Al
+  adivinar ("guess"), el rango efectivo arranca en ~12000 BPH.
 
 ### Rate (s/d) — la precisión
 
@@ -228,5 +229,5 @@ apuntan a pivotes, hairspring o balance en mal estado.
 | "Saved input device ... not found; falling back to default" | El mic fue reconectado (cambió `hw:X,Y`) | Seleccionar de nuevo el dispositivo en **mic** (botón ↻) |
 | CLIP encendido | Señal satura | Bajar gain o el nivel de entrada del sistema |
 | Rate raro (~+50 s/d) en un reloj sano | Sample rate real de la tarjeta desviado | Ejecutar *Calibrate* (~15 min) |
-| BPH lento (12000/14400) no detecta | Limitación: periodos ≥ 0.5 s a 44.1 kHz | No disponible por ahora |
+| BPH lento (12000/14400) no detecta con "guess" | Al adivinar el rango efectivo arranca en ~12000 BPH | Seleccionar el BPH conocido (con él se mide desde 8100) |
 | Report export vacío | Ciclos sin posición etiquetada | Seleccionar "pos" o usar la fila "none"/total (arreglado) |

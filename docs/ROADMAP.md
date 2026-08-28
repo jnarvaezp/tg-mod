@@ -146,6 +146,22 @@ Uso: menú Command → «Open recording…» para analizar un WAV sin micrófono
 - Menú Command → *Export report...*: escribe en `~/tg-logs/`
   `tg-report-<timestamp>.{csv,pdf}` (PDF generado con Cairo).
 
+## Fase 7a — Port de fixes algorítmicos de xyzzy42 (completada)
+
+**Rama:** `feature/xyzzy42-algo` — **Estado:** completada.
+
+Port de [xyzzy42/tg](https://github.com/xyzzy42/tg) por **Trent Piepho** (GPL-2):
+
+- **BPH bajos soportados hasta 8100**: el guard fijo de 0.5 s (que hacía
+  imposibles 12000/14400) se reemplaza por un límite dinámico (1.2× el
+  periodo nominal con BPH conocido). `test_dsp` actualizado.
+- Sigma de 1 muestra = 0 (antes = periodo, siempre rechazada).
+- `conjf` para float complex y alocación FFTW uniforme.
+- Amplitud estimada visible aunque esté fuera del rango físico (135–360°),
+  marcada con `*` y acotada a 720°.
+- Pendiente (7b): paperstrip v2 (zoom, timestamps, colores, overlay amplitud);
+  7c: tppm + procesamiento por paso.
+
 ## Fase 6 — i18n + pulido de UX
 
 **Rama:** `feature/i18n-ux`
