@@ -59,6 +59,8 @@ in particular the calibration procedure is described at
 - **Positions and report**: "pos" selector to tag measurements (dial up/down,
   crown up/down/left/right); *Export report...* writes a per-position summary
   to `~/tg-logs/tg-report-<timestamp>.{csv,pdf}`.
+- **Watch database**: persistent watch registry and session history in SQLite
+  (`~/tg-data/tg.db`) with per-session configuration snapshots.
 - **Testing suite**: `make check` (WAV module, session log, DSP regression
   with synthetic clips, stats and report modules).
 
@@ -124,7 +126,7 @@ Binary .deb packages can be downloaded from https://tg.ciovil.li
 
 The source code of tg can probably be built by any C99 compiler, however
 only gcc and clang have been tested. You need the following libraries:
-gtk+3, portaudio2, fftw3 (all available as open-source).
+gtk+3, portaudio2, fftw3, sqlite3 (all available as open-source).
 
 Release build:
 ```sh
@@ -147,7 +149,7 @@ to the instructions at [http://www.msys2.org](http://www.msys2.org). Then
 issue the following commands.
 
 ```sh
-pacman -S mingw-w64-x86_64-gcc make pkg-config mingw-w64-x86_64-gtk3 mingw-w64-x86_64-portaudio mingw-w64-x86_64-fftw git autoconf automake libtool
+pacman -S mingw-w64-x86_64-gcc make pkg-config mingw-w64-x86_64-gtk3 mingw-w64-x86_64-portaudio mingw-w64-x86_64-fftw mingw-w64-x86_64-sqlite3 git autoconf automake libtool
 git clone https://github.com/vacaboja/tg.git
 cd tg
 ./autogen.sh
@@ -160,7 +162,7 @@ make
 To compile tg on Debian
 
 ```sh
-sudo apt-get install libgtk-3-dev libjack-jackd2-dev portaudio19-dev libfftw3-dev git autoconf automake libtool
+sudo apt-get install libgtk-3-dev libjack-jackd2-dev portaudio19-dev libfftw3-dev libsqlite3-dev git autoconf automake libtool
 git clone https://github.com/vacaboja/tg.git
 cd tg
 ./autogen.sh
@@ -176,7 +178,7 @@ known bug (https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=718221).
 To compile tg on Fedora
 
 ```sh
-sudo dnf install fftw-devel portaudio-devel gtk3-devel autoconf automake libtool
+sudo dnf install fftw-devel portaudio-devel gtk3-devel sqlite-devel autoconf automake libtool
 git clone https://github.com/vacaboja/tg.git
 cd tg
 ./autogen.sh

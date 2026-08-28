@@ -69,6 +69,8 @@ git branch -d feature/<nombre>
 | `session.c` | Session log: anillo de ciclos + raw (JSON/CSV/raw) | pthread |
 | `stats.c` | Anillo de estadísticas en vivo + resumen por posición | pthread |
 | `report.c` | Informe por posición (CSV + PDF Cairo) | stats, cairo |
+| `json.c` | Writer + parser JSON mínimo | — |
+| `watchdb.c` | Registro de relojes y sesiones (SQLite, `~/tg-data/tg.db`) | SQLite, stats, json |
 
 ## Guías
 

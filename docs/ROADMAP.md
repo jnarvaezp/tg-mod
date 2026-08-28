@@ -45,25 +45,28 @@ El informe exportado excluía los ciclos sin posición etiquetada. Ahora
 incluye la fila "none" (ciclos sin etiquetar) y la fila "Total", y escribe
 "no data" si no hay mediciones.
 
-## Fase 5.5a — Registro de relojes (watch-db)
+## Fase 5.5a — Registro de relojes (watch-db) (completada)
 
-**Rama:** `feature/watch-db` — **Spec:** docs/superpowers/specs/2026-08-24-watch-db-design.md
+**Rama:** `feature/watch-db` — **Estado:** completada.
 
-- Almacenamiento JSON en `~/tg-data/` (watches.json + sesiones por reloj).
-- Lector/escritor JSON mínimo (`json.c`) y CRUD (`watchdb.c`) con tests.
-- Resumen de sesión con snapshot de configuración (bph, lift angle, cal,
-  gain, cutoff).
+- Base SQLite en `~/tg-data/tg.db`: tablas `watches` y `sessions` (FK CASCADE,
+  snapshot de configuración por sesión: bph, lift angle, cal, gain, cutoff).
+- CRUD completo de relojes y sesiones (`watchdb.c`) + captura de sesión
+  (`watchdb_capture_session`) + export JSON por reloj (`json.c`).
+- Campos del reloj: nombre, marca, modelo/calibre, serial, año, notas +
+  defaults de análisis (bph, lift angle).
+- Pendiente (5.5b): panel izquierdo UI, ciclo de sesión y gráfico de evolución.
 
 ## Fase 5.5b — Panel de sesiones (watch-panel)
 
 **Rama:** `feature/watch-panel`
 
 - Panel izquierdo: lista de relojes (crear/renombrar/eliminar), historial de
-  sesiones por reloj (fecha, posición, n, media, σ, be, amp).
+  sesiones por reloj (fecha, posición, n, media, σ, be, amp) consumiendo
+  `watchdb.c`.
 - Ciclo de sesión manual: Iniciar sesión / Finalizar y guardar (con la
   posición y configuración actuales).
-- Export de historial (CSV/PDF por reloj) y gráfico de evolución del rate
-  por sesión.
+- Gráfico de evolución del rate por sesión y defaults de análisis por reloj.
 
 ## Fase 0 — Integración del trabajo pendiente
 
