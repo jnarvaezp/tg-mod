@@ -354,6 +354,12 @@ static int serialize_snapshot(FILE *f, struct snapshot *s, char *name)
 	if(serialize_uint64_t_array(f, s->events, s->events_count)) return 1;
 	if(make_label(f, "events_tictoc")) return 1;
 	if(serialize_bool_array(f, s->events_tictoc, s->events_count)) return 1;
+	if(make_label(f, "amps_wp")) return 1;
+	SERIALIZE(int,amps_wp);
+	if(make_label(f, "amps_time")) return 1;
+	if(serialize_uint64_t_array(f, s->amps_time, s->amps_count)) return 1;
+	if(make_label(f, "amps")) return 1;
+	if(serialize_float_array(f, s->amps, s->amps_count)) return 1;
 	SERIALIZE(int,pb->sample_rate);
 	SERIALIZE(double,pb->period);
 	SERIALIZE(double,pb->waveform_max);
@@ -394,6 +400,7 @@ static int scan_snapshot(FILE *f, struct snapshot **s, char **name)
 	char l[LABEL_SIZE+1];
 	int n = 0;
 	int amp_valid_found = 0;
+	uint64_t amps_count2 = 0;
 	*s = NULL;
 	*name = NULL;
 	if(0 != fscanf(f, " U;%n", &n) || !n) return 1;
@@ -440,6 +447,27 @@ static int scan_snapshot(FILE *f, struct snapshot **s, char **name)
 			uint64_t x;
 			if(	(*s)->events_tictoc ||
 				scan_bool_array(f, &((*s)->events_tictoc), INT_MAX, &x)) goto error;
+			continue;
+		}
+		if(!strcmp("amps_wp", l)) {
+			debug("serializer: scanning amps_wp\n");
+			if(scan_int(f, &((*s)->amps_wp))) goto error;
+			continue;
+		}
+		if(!strcmp("amps_time", l)) {
+			debug("serializer: scanning amps_time\n");
+			uint64_t x;
+			if(	(*s)->amps_time ||
+				scan_uint64_t_array(f, &((*s)->amps_time), INT_MAX, &x)) goto error;
+			(*s)->amps_count = x;
+			continue;
+		}
+		if(!strcmp("amps", l)) {
+			debug("serializer: scanning amps\n");
+			uint64_t x;
+			if(	(*s)->amps ||
+				scan_float_array(f, &((*s)->amps), INT_MAX, &x)) goto error;
+			amps_count2 = x;
 			continue;
 		}
 		SCAN(int,pb->sample_rate);
@@ -503,11 +531,15 @@ static int scan_snapshot(FILE *f, struct snapshot **s, char **name)
 	debug("serializer: checking beat error\n");
 	if((*s)->be < 0 || (*s)->be > 99.9) goto error;
 	debug("serializer: checking amplitude\n");
-	if((*s)->amp < 0 || (*s)->amp > 360) goto error;
+	/* Amplitudes outside the physical range are kept for diagnosis (the DSP
+	 * bounds the estimate to 720 deg); amp_valid says if it's in range. */
+	if((*s)->amp < 0 || (*s)->amp > 720) goto error;
 	// Old .tgj files lack amp_valid; infer it from the amplitude
 	if(!amp_valid_found)
 		(*s)->amp_valid = (*s)->amp > 0;
 	if((*s)->amp_valid < 0 || (*s)->amp_valid > 1) goto error;
+	debug("serializer: checking amplitudes\n");
+	if((*s)->amps && (uint64_t)(*s)->amps_count != amps_count2) goto error;
 	debug("serializer: checking scale\n");
 	if((*s)->d->beat_scale == 0) (*s)->d->beat_scale = 1.0/PAPERSTRIP_ZOOM;
 	if((*s)->d->beat_scale < 0 || (*s)->d->beat_scale > 1) goto error;

@@ -18,16 +18,19 @@
 
 #include "tg.h"
 
-static int count_events(struct snapshot *s)
+static int count_events(const uint64_t *events, int wp, int nevents)
 {
-	int i, cnt = 0;
-	if(!s->events_count) return 0;
-	for(i = s->events_wp; s->events[i];) {
-		cnt++;
-		if(--i < 0) i = s->events_count - 1;
-		if(i == s->events_wp) break;
+	int i;
+	if(!nevents || !events[wp]) return 0;
+
+	if(!events[0]) {
+		for(i = 1; i < wp; i++)
+			if(events[i]) break;
+		return wp - i + 1;
 	}
-	return cnt;
+	for(i = wp+1; i < nevents; i++)
+		if (events[i]) break;
+	return nevents + wp - i + 1;
 }
 
 struct snapshot *snapshot_clone(struct snapshot *s)
@@ -35,7 +38,7 @@ struct snapshot *snapshot_clone(struct snapshot *s)
 	struct snapshot *t = malloc(sizeof(struct snapshot));
 	memcpy(t,s,sizeof(struct snapshot));
 	if(s->pb) t->pb = pb_clone(s->pb);
-	t->events_count = count_events(s);
+	t->events_count = count_events(s->events, s->events_wp, s->events_count);
 	if(t->events_count) {
 		t->events_wp = t->events_count - 1;
 		t->events = malloc(t->events_count * sizeof(*t->events));
@@ -63,6 +66,22 @@ struct snapshot *snapshot_clone(struct snapshot *s)
 		t->d = malloc(sizeof(*t->d));
 		*t->d = *s->d;
 	}
+	t->amps_count = count_events(s->amps_time, s->amps_wp, s->amps_count);
+	if(t->amps_count) {
+		t->amps_wp = t->amps_count - 1;
+		t->amps = malloc(t->amps_count * sizeof(*t->amps));
+		t->amps_time = malloc(t->amps_count * sizeof(*t->amps_time));
+		int i, j;
+		for(i = t->amps_wp, j = s->amps_wp; i >= 0; i--) {
+			t->amps[i] = s->amps[j];
+			t->amps_time[i] = s->amps_time[j];
+			if(--j < 0) j = s->amps_count - 1;
+		}
+	} else {
+		t->amps_wp = 0;
+		t->amps = NULL;
+		t->amps_time = NULL;
+	}
 	return t;
 }
 
@@ -70,6 +89,8 @@ void snapshot_destroy(struct snapshot *s)
 {
 	if(s->pb) pb_destroy_clone(s->pb);
 	if(s->d) free(s->d);
+	free(s->amps_time);
+	free(s->amps);
 	free(s->events_tictoc);
 	free(s->events);
 	free(s);
@@ -154,6 +175,7 @@ static void compute_events(struct computer *c)
 		 * start.  It's a half-vibration after the last event, to avoid adding
 		 * the same event twice with slightly different timestamps.  */
 		const uint64_t last = s->events[s->events_wp] + floor(p->period / 4);
+		bool newevent = false;
 		int i;
 		for(i=0; i<EVENTS_MAX && p->events[i].pos; i++)
 			if(p->events[i].pos > last) {
@@ -161,7 +183,21 @@ static void compute_events(struct computer *c)
 				s->events[s->events_wp] = p->events[i].pos;
 				s->events_tictoc[s->events_wp] = p->events[i].tictoc;
 				debugv("event at %llu\n", s->events[s->events_wp]);
+				newevent = true;
 			}
+
+		/* Add a new amplitude if we have full signal, have new ticks, and it's been
+		 * about a period since the last sample.  Place the amplitude measurement at the
+		 * center of the averaging interval.  */
+		if (newevent && s->signal == NSTEPS && p->amp > 0) {
+			const uint64_t amp_time = p->timestamp - p->sample_count/2;
+			if (amp_time > s->amps_time[s->amps_wp] + (uint64_t)(3*p->period/4)) {
+				if(++s->amps_wp == s->amps_count) s->amps_wp = 0;
+				s->amps[s->amps_wp] = p->amp;
+				s->amps_time[s->amps_wp] = amp_time;
+			}
+		}
+
 		s->events_from = p->timestamp - ceil(p->period);
 	} else {
 		s->events_from = get_timestamp(s->is_light);
@@ -227,8 +263,11 @@ static void *computing_thread(void *void_computer)
 			if(c->curr)
 				snapshot_destroy(c->curr);
 			if(c->clear_trace) {
-				if(!calibrate)
-					memset(c->actv->events,0,c->actv->events_count*sizeof(uint64_t));
+				if(!calibrate) {
+					memset(c->actv->events,0,c->actv->events_count*sizeof(*c->actv->events));
+					memset(c->actv->amps,0,c->actv->amps_count*sizeof(*c->actv->amps));
+					memset(c->actv->amps_time,0,c->actv->amps_count*sizeof(*c->actv->amps_time));
+				}
 				c->clear_trace = 0;
 			}
 			c->curr = snapshot_clone(c->actv);
@@ -293,6 +332,10 @@ struct computer *start_computer(int nominal_sr, int bph, double la, int cal, int
 	s->events = malloc(EVENTS_COUNT * sizeof(uint64_t));
 	memset(s->events,0,EVENTS_COUNT * sizeof(uint64_t));
 	s->events_tictoc = calloc(EVENTS_COUNT, sizeof(*s->events_tictoc));
+	s->amps_count = EVENTS_COUNT/2;
+	s->amps = calloc(EVENTS_COUNT/2, sizeof(*s->amps));
+	s->amps_time = calloc(EVENTS_COUNT/2, sizeof(*s->amps_time));
+	s->amps_wp = 0;
 	s->events_wp = 0;
 	s->events_from = 0;
 	s->d = NULL;

@@ -24,7 +24,7 @@ static const double zoom_min = 1, zoom_max = 100, zoom_mid = (zoom_min + zoom_ma
 // Scale ranges from 1x beat length to zoomed in by 100x
 static const double scale_min = 1, scale_max = 100;
 
-cairo_pattern_t *black,*white,*red,*green,*blue,*blueish,*yellow;
+cairo_pattern_t *black,*white,*red,*green,*blue,*blueish,*yellow,*goldenrod;
 
 static void define_color(cairo_pattern_t **gc,double r,double g,double b)
 {
@@ -40,6 +40,7 @@ void initialize_palette()
 	define_color(&blue,0,0,1);
 	define_color(&blueish,0,0,.5);
 	define_color(&yellow,1,1,0);
+	define_color(&goldenrod,.980,.761,.020);
 }
 
 static void draw_graph(double a, double b, cairo_t *c, struct processing_buffers *p, GtkWidget *da)
@@ -331,6 +332,7 @@ static void expose_waveform(
 			struct output_panel *op,
 			GtkWidget *da,
 			cairo_t *c,
+			cairo_pattern_t *color,
 			int (*get_offset)(struct processing_buffers*),
 			double (*get_pulse)(struct processing_buffers*))
 {
@@ -431,7 +433,7 @@ static void expose_waveform(
 
 		draw_graph(a,b,c,p,da);
 
-		cairo_set_source(c,old?yellow:white);
+		cairo_set_source(c,old?yellow:color);
 		cairo_stroke_preserve(c);
 		cairo_fill(c);
 
@@ -533,7 +535,7 @@ static void overlay_three_phase(struct output_panel *op, GtkWidget *da, cairo_t 
 static gboolean tic_draw_event(GtkWidget *widget, cairo_t *c, struct output_panel *op)
 {
 	UNUSED(widget);
-	expose_waveform(op, op->tic_drawing_area, c, get_tic, get_tic_pulse);
+	expose_waveform(op, op->tic_drawing_area, c, white, get_tic, get_tic_pulse);
 	overlay_three_phase(op, op->tic_drawing_area, c, op->snst->pb ? op->snst->pb->unlock : -1, op->snst->pb ? op->snst->pb->impulse : -1, op->snst->pb ? op->snst->pb->drop : -1);
 	return FALSE;
 }
@@ -541,7 +543,7 @@ static gboolean tic_draw_event(GtkWidget *widget, cairo_t *c, struct output_pane
 static gboolean toc_draw_event(GtkWidget *widget, cairo_t *c, struct output_panel *op)
 {
 	UNUSED(widget);
-	expose_waveform(op, op->toc_drawing_area, c, get_toc, get_toc_pulse);
+	expose_waveform(op, op->toc_drawing_area, c, goldenrod, get_toc, get_toc_pulse);
 	overlay_three_phase(op, op->toc_drawing_area, c, op->snst->pb ? op->snst->pb->unlock2 : -1, op->snst->pb ? op->snst->pb->impulse2 : -1, op->snst->pb ? op->snst->pb->drop2 : -1);
 	return FALSE;
 }
@@ -737,6 +739,23 @@ static gboolean paperstrip_draw_event(GtkWidget *widget, cairo_t *c, struct outp
 	cairo_line_to(c, right_margin + .5, height - .5);
 	cairo_stroke(c);
 
+	// Amplitude graph: yellow line, x maps amplitude 135-360 deg across the
+	// chart; lower amplitudes (worn movements) hug the right edge.
+	if (snst->amps_count && snst->amps) {
+		cairo_new_path(c);
+		cairo_set_source(c, yellow);
+		for (i = snst->amps_count; i > 0; i--) {
+			const int idx = (snst->amps_wp + i) % snst->amps_count;
+			if (snst->amps_time[idx] > time) continue;
+			const double t = (time - snst->amps_time[idx]) / beat_length;
+			double a = (snst->la * snst->amps[idx] - 135.0) / (360-135) * width;
+			if (a < 0) a = 0;
+			if (t > height) break;
+			cairo_line_to(c, width - a, t);
+		}
+		cairo_stroke(c);
+	}
+
 	// Time grid lines
 	cairo_set_line_width(c, 1);
 	// Space between lines in samples = 10 sec
@@ -775,7 +794,6 @@ static gboolean paperstrip_draw_event(GtkWidget *widget, cairo_t *c, struct outp
 
 	// Ticks and tocks
 	cairo_set_line_width(c, 0);
-	cairo_set_source(c, stopped ? yellow : white);
 	/* Compute lag 1 difference between events, find residuals modulo beat
 	 * length (BL) of those differences, convert to range (-BL/2, BL/2], and
 	 * accumulate.
@@ -818,6 +836,11 @@ static gboolean paperstrip_draw_event(GtkWidget *widget, cairo_t *c, struct outp
 		// Row 0 is at "time", each row is one beat earlier than that.
 		const double row = round((time - event) / beat_length);
 		if(row > height) break;
+
+		// Tic dots white, toc dots goldenrod; all yellow when stopped
+		cairo_set_source(c, stopped ? yellow :
+		                 snst->events_tictoc ? (snst->events_tictoc[idx] ? white : goldenrod)
+		                                     : white);
 
 		double chart_phase = fmod(offsets[idx] + display_offset, chart_width);
 		if (chart_phase < 0) chart_phase += chart_width;
@@ -900,6 +923,10 @@ static void handle_clear_trace(GtkButton *b, struct output_panel *op)
 		lock_computer(op->computer);
 		if(!op->snst->calibrate) {
 			memset(op->snst->events,0,op->snst->events_count*sizeof(uint64_t));
+			if(op->snst->amps) {
+				memset(op->snst->amps,0,op->snst->amps_count*sizeof(*op->snst->amps));
+				memset(op->snst->amps_time,0,op->snst->amps_count*sizeof(*op->snst->amps_time));
+			}
 			op->computer->clear_trace = 1;
 		}
 		unlock_computer(op->computer);

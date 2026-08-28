@@ -218,6 +218,12 @@ struct snapshot {
 	int events_wp; // used in cal+timegrapher mode
 	uint64_t events_from; // used only in timegrapher mode
 
+	/** Allocated arrays of amplitude measurements and timestamps */
+	float *amps;		//< Circ buffer with history of amplitude measurements
+	uint64_t *amps_time;	//< Timestamps for amps
+	int amps_wp;		//< Index of recent amp in amps
+	int amps_count;		//< Number of amplitude samples
+
 	int signal;
 
 	int cal_state;
