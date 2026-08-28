@@ -195,6 +195,15 @@ static gboolean evo_draw_event(GtkWidget *widget, cairo_t *cr, gpointer data)
 	cairo_set_source_rgb(cr, 1, 1, 1);
 	cairo_paint(cr);
 
+	if(!ed || ed->n < 1) {
+		cairo_set_source_rgb(cr, 0.5, 0.5, 0.5);
+		cairo_select_font_face(cr, "sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+		cairo_set_font_size(cr, 12);
+		cairo_move_to(cr, 10, height / 2.0);
+		cairo_show_text(cr, "No sessions recorded");
+		return FALSE;
+	}
+
 	double maxabs = 10;
 	int i;
 	for(i = 0; i < ed->n; i++) {
@@ -282,7 +291,7 @@ static void on_evolution_clicked(GtkButton *button, struct main_window *w)
 		"Close", GTK_RESPONSE_CLOSE, NULL);
 	GtkWidget *da = gtk_drawing_area_new();
 	gtk_widget_set_size_request(da, 640, 400);
-	g_object_set_data_full(G_OBJECT(dlg), "evo-data", ed, evo_data_free);
+	g_object_set_data_full(G_OBJECT(da), "evo-data", ed, evo_data_free);
 	g_signal_connect(da, "draw", G_CALLBACK(evo_draw_event), NULL);
 	gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(dlg))),
 		da, TRUE, TRUE, 0);
