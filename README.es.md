@@ -60,9 +60,10 @@ en particular el procedimiento de calibración está descrito en
 - **Posiciones e informe**: selector "pos" para etiquetar las mediciones
   (dial up/down, crown up/down/left/right); *Export report...* escribe un
   resumen por posición en `~/tg-logs/tg-report-<timestamp>.{csv,pdf}`.
-- **Base de datos de relojes**: registro persistente de relojes e historial
-  de sesiones en SQLite (`~/tg-data/tg.db`) con snapshot de configuración
-  por sesión.
+- **Base de datos de relojes**: cuaderno del relojero — registro persistente
+  de relojes e historial de sesiones en SQLite (`~/tg-data/tg.db`). El panel
+  izquierdo permite crear relojes, grabar sesiones de medición (etiquetadas
+  con posición y configuración) y consultar el historial por reloj.
 - **Suite de pruebas**: `make check` (módulo WAV, session log, regresión DSP
   con clips sintéticos, módulos de estadísticas e informe).
 

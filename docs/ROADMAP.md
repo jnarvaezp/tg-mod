@@ -57,16 +57,20 @@ incluye la fila "none" (ciclos sin etiquetar) y la fila "Total", y escribe
   defaults de análisis (bph, lift angle).
 - Pendiente (5.5b): panel izquierdo UI, ciclo de sesión y gráfico de evolución.
 
-## Fase 5.5b — Panel de sesiones (watch-panel)
+## Fase 5.5b — Panel de sesiones (watch-panel) (completada)
 
-**Rama:** `feature/watch-panel`
+**Rama:** `feature/watch-panel` — **Estado:** completada.
 
-- Panel izquierdo: lista de relojes (crear/renombrar/eliminar), historial de
-  sesiones por reloj (fecha, posición, n, media, σ, be, amp) consumiendo
-  `watchdb.c`.
+- Panel izquierdo (GtkPaned): lista de relojes (crear/eliminar con
+  confirmación), historial de sesiones por reloj (fecha, posición, n,
+  media, σ, be, amp) consumiendo `watchdb.c`.
 - Ciclo de sesión manual: Iniciar sesión / Finalizar y guardar (con la
-  posición y configuración actuales).
-- Gráfico de evolución del rate por sesión y defaults de análisis por reloj.
+  posición del selector "pos", nota opcional y snapshot de configuración).
+- Base abierta al arrancar (`~/tg-data/tg.db`, creada si falta) y cerrada
+  al salir.
+- Pendiente (iteración siguiente): export del historial por reloj (CSV/PDF),
+  gráfico de evolución por sesión, edición de defaults por reloj (bph /
+  lift angle) desde la UI.
 
 ## Fase 0 — Integración del trabajo pendiente
 

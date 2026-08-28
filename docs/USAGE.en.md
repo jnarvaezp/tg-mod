@@ -199,7 +199,7 @@ Command → *Save session log* saves three files per session in `~/tg-logs/`:
 Console: `tg-timer debug` (per-cycle summary) or `tg-timer debug full` (all
 detection details).
 
-## 7. Positions and report
+## 7. Positions, report and the watchmaker's logbook
 
 1. Measure 30–60 s in one position (e.g. dial up) with the **pos** selector
    set to that position.
@@ -212,6 +212,20 @@ detection details).
 position (Δ between max and min mean) indicates the state of the
 regulation. A healthy watch usually varies < 15–20 s/d between positions;
 large variations point to pivots, hairspring or balance problems.
+
+### The watchmaker's logbook (left panel)
+
+- **Create a watch**: *New watch...* button (name required, brand and model
+  optional).
+- **Record a session**: select the watch, choose the position with the
+  **pos** selector, press *Start session*, measure 30–60 s, then press
+  *Finish & save*. The session is recorded with its position, note,
+  statistical summary (n, mean, σ, min, max) and the configuration used
+  (bph, lift angle, cal, gain, cutoff).
+- **History**: the panel table shows all sessions of the selected watch
+  with their date — track the evolution of the regulation (before/after a
+  repair, for example).
+- The database lives in `~/tg-data/tg.db` (SQLite).
 
 ## 8. Troubleshooting
 

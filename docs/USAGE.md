@@ -207,7 +207,7 @@ Command → *Save session log* guarda en `~/tg-logs/` tres archivos por sesión:
 En consola: `tg-timer debug` (resumen por ciclo) o `tg-timer debug full`
 (todos los detalles de detección).
 
-## 7. Posiciones e informe
+## 7. Posiciones, informe y cuaderno del relojero
 
 1. Mide 30–60 s en una posición (p. ej. dial up) con el selector **pos** en
    esa posición.
@@ -220,6 +220,20 @@ En consola: `tg-timer debug` (resumen por ciclo) o `tg-timer debug full`
 posición (Δ entre media máx y mín) indica el estado de la regulación. Un
 reloj sano suele variar < 15–20 s/d entre posiciones; variaciones grandes
 apuntan a pivotes, hairspring o balance en mal estado.
+
+### Cuaderno del relojero (panel izquierdo)
+
+- **Crear reloj**: botón *New watch...* (nombre obligatorio, marca y modelo
+  opcionales).
+- **Grabar una sesión**: selecciona el reloj, elige la posición con el
+  selector **pos**, pulsa *Start session*, mide 30–60 s, y pulsa *Finish &
+  save*. La sesión queda registrada con la posición, la nota, el resumen
+  estadístico (n, media, σ, mín, máx) y la configuración usada (bph, lift
+  angle, cal, gain, cutoff).
+- **Historial**: la tabla del panel muestra todas las sesiones del reloj
+  seleccionado con su fecha — así sigues la evolución de la regulación
+  (antes/después de una reparación, por ejemplo).
+- La base vive en `~/tg-data/tg.db` (SQLite).
 
 ## 8. Resolución de problemas
 

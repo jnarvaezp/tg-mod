@@ -59,8 +59,10 @@ in particular the calibration procedure is described at
 - **Positions and report**: "pos" selector to tag measurements (dial up/down,
   crown up/down/left/right); *Export report...* writes a per-position summary
   to `~/tg-logs/tg-report-<timestamp>.{csv,pdf}`.
-- **Watch database**: persistent watch registry and session history in SQLite
-  (`~/tg-data/tg.db`) with per-session configuration snapshots.
+- **Watch database**: watchmaker's logbook — persistent watch registry and
+  session history in SQLite (`~/tg-data/tg.db`). The left panel lets you
+  create watches, record measurement sessions (tagged with position and
+  configuration) and browse the per-watch history.
 - **Testing suite**: `make check` (WAV module, session log, DSP regression
   with synthetic clips, stats and report modules).
 
