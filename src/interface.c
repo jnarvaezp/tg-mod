@@ -22,11 +22,13 @@
 #include "report.h"
 #include "watch_panel.h"
 #include "watchdb.h"
+#include <glib/gi18n.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <libgen.h>
 #include <ctype.h>
+#include <locale.h>
 #include <time.h>
 
 #ifdef DEBUG
@@ -222,7 +224,7 @@ static guint computer_terminated(struct main_window *w)
 			double real_sr;
 			if(start_portaudio(&w->nominal_sr, &real_sr, w->input_device)) {
 				w->zombie = 1;
-				error("Failed to re-open audio input device");
+				error(_("Failed to re-open audio input device"));
 				gtk_widget_destroy(w->window);
 				return FALSE;
 			}
@@ -248,7 +250,7 @@ static guint computer_terminated(struct main_window *w)
 		struct computer *c = start_computer(w->nominal_sr, w->bph, w->la, w->cal, w->is_light);
 		if(!c) {
 			w->zombie = 1;
-			error("Failed to restart computation thread");
+			error(_("Failed to restart computation thread"));
 			gtk_widget_destroy(w->window);
 		} else {
 			w->active_panel->computer = w->computer = c;
@@ -258,7 +260,7 @@ static guint computer_terminated(struct main_window *w)
 
 			if(w->pending_audio_file) {
 				if(load_audio_file(w->pending_audio_file)) {
-					error("Failed to open recording: %s", w->pending_audio_file);
+					error(_("Failed to open recording: %s"), w->pending_audio_file);
 					w->audio_file_mode = 0;
 					w->nominal_sr = PA_SAMPLE_RATE;
 					w->is_light = w->saved_is_light;
@@ -384,7 +386,7 @@ static void handle_device_change(GtkComboBox *b, struct main_window *w)
 	// "System default" maps to empty string (PortAudio falls back to OS default
 	// when *preferred == '\0'); this keeps w->input_device always non-NULL so
 	// save_config can serialize it cleanly.
-	gchar *new_device = strcmp(s, "System default") ? g_strdup(s) : g_strdup("");
+	gchar *new_device = strcmp(s, _("System default")) ? g_strdup(s) : g_strdup("");
 	g_free(s);
 
 	// No-op if unchanged (g_strcmp0 treats NULL == "" as different, but we keep
@@ -404,7 +406,7 @@ static void populate_devices(struct main_window *w)
 {
 	g_signal_handlers_block_by_func(w->device_combo_box, handle_device_change, w);
 	gtk_combo_box_text_remove_all(GTK_COMBO_BOX_TEXT(w->device_combo_box));
-	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->device_combo_box), "System default");
+	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->device_combo_box), _("System default"));
 	const char *match = match_input_device_name(w->input_device);
 	int dev_count = get_input_device_count();
 	int di, active = 0;
@@ -468,9 +470,9 @@ static void handle_open_recording(GtkMenuItem *m, struct main_window *w)
 {
 	UNUSED(m);
 	if(get_recording()) return;
-	GtkWidget *dialog = gtk_file_chooser_dialog_new("Open recording",
+	GtkWidget *dialog = gtk_file_chooser_dialog_new(_("Open recording"),
 			GTK_WINDOW(w->window), GTK_FILE_CHOOSER_ACTION_OPEN,
-			"Cancel", GTK_RESPONSE_CANCEL, "Open", GTK_RESPONSE_ACCEPT, NULL);
+			_("Cancel"), GTK_RESPONSE_CANCEL, _("Open"), GTK_RESPONSE_ACCEPT, NULL);
 	GtkFileFilter *f = gtk_file_filter_new();
 	gtk_file_filter_set_name(f, ".wav");
 	gtk_file_filter_add_pattern(f, "*.wav");
@@ -513,9 +515,9 @@ static void handle_start_recording(GtkMenuItem *m, struct main_window *w)
 {
 	UNUSED(m);
 	if(w->audio_file_mode || get_recording()) return;
-	GtkWidget *dialog = gtk_file_chooser_dialog_new("Record to file",
+	GtkWidget *dialog = gtk_file_chooser_dialog_new(_("Record to file"),
 			GTK_WINDOW(w->window), GTK_FILE_CHOOSER_ACTION_SAVE,
-			"Cancel", GTK_RESPONSE_CANCEL, "Save", GTK_RESPONSE_ACCEPT, NULL);
+			_("Cancel"), GTK_RESPONSE_CANCEL, _("Save"), GTK_RESPONSE_ACCEPT, NULL);
 	gtk_file_chooser_set_current_name(GTK_FILE_CHOOSER(dialog), "recording.wav");
 	GtkFileFilter *f = gtk_file_filter_new();
 	gtk_file_filter_set_name(f, ".wav");
@@ -528,7 +530,7 @@ static void handle_start_recording(GtkMenuItem *m, struct main_window *w)
 		g_object_unref(gf);
 		if(filename) {
 			if(start_recording(filename))
-				error("Failed to start recording to %s", filename);
+				error(_("Failed to start recording to %s"), filename);
 			else
 				update_audio_mode_ui(w);
 			g_free(filename);
@@ -549,7 +551,7 @@ static void handle_save_session_log(GtkMenuItem *m, struct main_window *w)
 	UNUSED(m);
 	char *dir = g_build_filename(g_get_home_dir(), "tg-logs", NULL);
 	if(g_mkdir_with_parents(dir, 0755)) {
-		error("Cannot create log directory %s", dir);
+		error(_("Cannot create log directory %s"), dir);
 		g_free(dir);
 		return;
 	}
@@ -558,10 +560,10 @@ static void handle_save_session_log(GtkMenuItem *m, struct main_window *w)
 	strftime(base, sizeof(base), "tg-session-%Y%m%d-%H%M%S", localtime(&t));
 	int err = session_save(dir, base);
 	if(err)
-		error("Session log: %d file(s) failed in %s", err, dir);
+		error(_("Session log: %d file(s) failed in %s"), err, dir);
 	else {
 		GtkWidget *d = gtk_message_dialog_new(GTK_WINDOW(w->window), 0, GTK_MESSAGE_INFO, GTK_BUTTONS_CLOSE,
-			"Session log saved to\n%s/%s.{json,csv,raw}", dir, base);
+			_("Session log saved to\n%s/%s.{json,csv,raw}"), dir, base);
 		gtk_dialog_run(GTK_DIALOG(d));
 		gtk_widget_destroy(d);
 	}
@@ -573,7 +575,7 @@ static void handle_export_report(GtkMenuItem *m, struct main_window *w)
 	UNUSED(m);
 	char *dir = g_build_filename(g_get_home_dir(), "tg-logs", NULL);
 	if(g_mkdir_with_parents(dir, 0755)) {
-		error("Cannot create report directory %s", dir);
+		error(_("Cannot create report directory %s"), dir);
 		g_free(dir);
 		return;
 	}
@@ -589,10 +591,10 @@ static void handle_export_report(GtkMenuItem *m, struct main_window *w)
 	snprintf(path, sizeof(path), "%s/%s.pdf", dir, base);
 	if(report_write_pdf(path, rows, n)) err++;
 	if(err)
-		error("Report: %d file(s) failed in %s", err, dir);
+		error(_("Report: %d file(s) failed in %s"), err, dir);
 	else {
 		GtkWidget *d = gtk_message_dialog_new(GTK_WINDOW(w->window), 0, GTK_MESSAGE_INFO, GTK_BUTTONS_CLOSE,
-			"Report saved to\n%s/%s.{csv,pdf}", dir, base);
+			_("Report saved to\n%s/%s.{csv,pdf}"), dir, base);
 		gtk_dialog_run(GTK_DIALOG(d));
 		gtk_widget_destroy(d);
 	}
@@ -626,13 +628,13 @@ static void update_audio_mode_ui(struct main_window *w)
 
 	const char *txt;
 	if(recording) {
-		txt = "recording...";
+		txt = _("recording...");
 	} else if(file_mode && w->audio_file_name) {
 		txt = w->audio_file_name;
 	} else if(file_mode) {
-		txt = "recording";
+		txt = _("recording");
 	} else {
-		txt = "mic";
+		txt = _("mic");
 	}
 	gtk_label_set_text(GTK_LABEL(w->source_label), txt);
 
@@ -766,7 +768,7 @@ static GtkWidget *make_tab_label(char *name, struct output_panel *panel_to_close
 {
 	GtkWidget *hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
 
-	char *nm = panel_to_close ? name ? name : "Snapshot" : "Real time";
+	char *nm = panel_to_close ? name ? name : "Snapshot" : _("Real time");
 	GtkWidget *label = gtk_label_new(nm);
 	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 5);
 
@@ -823,7 +825,7 @@ static void chooser_set_filters(GtkFileChooser *chooser)
 	gtk_file_chooser_add_filter(chooser, tgj_filter);
 
 	GtkFileFilter *all_filter = gtk_file_filter_new();
-	gtk_file_filter_set_name(all_filter, "All files");
+	gtk_file_filter_set_name(all_filter, _("All files"));
 	gtk_file_filter_add_pattern(all_filter, "*");
 	gtk_file_chooser_add_filter(chooser, all_filter);
 
@@ -856,7 +858,7 @@ error:	g_free(name);
 	if(!f) {
 		GtkWidget *dialog;
 		dialog = gtk_message_dialog_new(GTK_WINDOW(w->window),0,GTK_MESSAGE_ERROR,GTK_BUTTONS_CLOSE,
-					"Error opening file\n");
+					_("Error opening file\n"));
 		gtk_dialog_run(GTK_DIALOG(dialog));
 		gtk_widget_destroy(dialog);
 	}
@@ -870,9 +872,9 @@ static FILE *choose_file_for_save(struct main_window *w, char *title, char *sugg
 	GtkWidget *dialog = gtk_file_chooser_dialog_new (title,
 			GTK_WINDOW(w->window),
 			GTK_FILE_CHOOSER_ACTION_SAVE,
-			"Cancel",
+			_("Cancel"),
 			GTK_RESPONSE_CANCEL,
-			"Save",
+			_("Save"),
 			GTK_RESPONSE_ACCEPT,
 			NULL);
 	GtkFileChooser *chooser = GTK_FILE_CHOOSER (dialog);
@@ -903,7 +905,7 @@ static FILE *choose_file_for_save(struct main_window *w, char *title, char *sugg
 				GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
 				GTK_MESSAGE_QUESTION,
 				GTK_BUTTONS_OK_CANCEL,
-				"File %s already exists. Do you want to replace it?",
+				_("File %s already exists. Do you want to replace it?"),
 				filename);
 			do_open = GTK_RESPONSE_OK == gtk_dialog_run(GTK_DIALOG(dialog));
 			gtk_widget_destroy(dialog);
@@ -943,12 +945,12 @@ static void save_current(GtkMenuItem *m, struct main_window *w)
 	if(!snapshot->timestamp)
 		snapshot->timestamp = get_timestamp(snapshot->is_light);
 
-	FILE *f = choose_file_for_save(w, "Save current display", name);
+	FILE *f = choose_file_for_save(w, _("Save current display"), name);
 
 	if(f) {
 		if(write_file(f, &snapshot, &name, 1)) {
 			GtkWidget *dialog = gtk_message_dialog_new(GTK_WINDOW(w->window),0,GTK_MESSAGE_ERROR,GTK_BUTTONS_CLOSE,
-						"Error writing file");
+						_("Error writing file"));
 			gtk_dialog_run(GTK_DIALOG(dialog));
 			gtk_widget_destroy(dialog);
 		}
@@ -976,7 +978,7 @@ static void close_all(GtkMenuItem *m, struct main_window *w)
 static void save_all(GtkMenuItem *m, struct main_window *w)
 {
 	UNUSED(m);
-	FILE *f = choose_file_for_save(w, "Save all snapshots", NULL);
+	FILE *f = choose_file_for_save(w, _("Save all snapshots"), NULL);
 	if(!f) return;
 
 	int i, j, tabs = gtk_notebook_get_n_pages(GTK_NOTEBOOK(w->notebook));
@@ -993,7 +995,7 @@ static void save_all(GtkMenuItem *m, struct main_window *w)
 
 	if(write_file(f, s, names, j)) {
 		GtkWidget *dialog = gtk_message_dialog_new(GTK_WINDOW(w->window),0,GTK_MESSAGE_ERROR,GTK_BUTTONS_CLOSE,
-					"Error writing file");
+					_("Error writing file"));
 		gtk_dialog_run(GTK_DIALOG(dialog));
 		gtk_widget_destroy(dialog);
 	}
@@ -1016,7 +1018,7 @@ static void load_snapshots(FILE *f, char *name, struct main_window *w)
 		free(names);
 	} else {
 		GtkWidget *dialog = gtk_message_dialog_new(GTK_WINDOW(w->window),0,GTK_MESSAGE_ERROR,GTK_BUTTONS_CLOSE,
-					"Error reading file: %s", name);
+					_("Error reading file: %s"), name);
 		gtk_dialog_run(GTK_DIALOG(dialog));
 		gtk_widget_destroy(dialog);
 	}
@@ -1041,12 +1043,12 @@ static void load_from_file(char *filename, struct main_window *w)
 static void load(GtkMenuItem *m, struct main_window *w)
 {
 	UNUSED(m);
-	GtkWidget *dialog = gtk_file_chooser_dialog_new ("Open",
+	GtkWidget *dialog = gtk_file_chooser_dialog_new (_("Open"),
 			GTK_WINDOW(w->window),
 			GTK_FILE_CHOOSER_ACTION_OPEN,
-			"Cancel",
+			_("Cancel"),
 			GTK_RESPONSE_CANCEL,
-			"Open",
+			_("Open"),
 			GTK_RESPONSE_ACCEPT,
 			NULL);
 	GtkFileChooser *chooser = GTK_FILE_CHOOSER (dialog);
@@ -1084,14 +1086,14 @@ static void init_main_window(struct main_window *w)
 	gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
 
 	// BPH label
-	GtkWidget *label = gtk_label_new("bph");
+	GtkWidget *label = gtk_label_new(_("bph"));
 	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
 	// BPH combo box
 	w->bph_combo_box = gtk_combo_box_text_new_with_entry();
 	gtk_box_pack_start(GTK_BOX(hbox), w->bph_combo_box, FALSE, FALSE, 0);
 	// Fill in pre-defined values
-	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->bph_combo_box), "guess");
+	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->bph_combo_box), _("guess"));
 	int i,current = 0;
 	for(i = 0; preset_bph[i]; i++) {
 		char s[100];
@@ -1110,7 +1112,7 @@ static void init_main_window(struct main_window *w)
 	g_signal_connect (w->bph_combo_box, "changed", G_CALLBACK(handle_bph_change), w);
 
 	// Lift angle label
-	label = gtk_label_new("lift angle");
+	label = gtk_label_new(_("lift angle"));
 	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
 	// Lift angle spin button
@@ -1120,7 +1122,7 @@ static void init_main_window(struct main_window *w)
 	g_signal_connect(w->la_spin_button, "value_changed", G_CALLBACK(handle_la_change), w);
 
 	// Calibration label
-	label = gtk_label_new("cal");
+	label = gtk_label_new(_("cal"));
 	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
 	// Calibration spin button
@@ -1134,7 +1136,7 @@ static void init_main_window(struct main_window *w)
 	g_signal_connect(w->cal_spin_button, "input", G_CALLBACK(input_cal), NULL);
 
 	// Audio input device label + combo box
-	label = gtk_label_new("mic");
+	label = gtk_label_new(_("mic"));
 	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
 	w->device_combo_box = gtk_combo_box_text_new();
@@ -1147,7 +1149,7 @@ static void init_main_window(struct main_window *w)
 	g_signal_connect_swapped(w->dev_refresh, "clicked", G_CALLBACK(populate_devices), w);
 
 	// Gain label + spin button
-	label = gtk_label_new("gain");
+	label = gtk_label_new(_("gain"));
 	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 	w->gain_spin_button = gtk_spin_button_new_with_range(0.1, 100.0, 0.1);
 	gtk_spin_button_set_value(GTK_SPIN_BUTTON(w->gain_spin_button), w->gain);
@@ -1157,14 +1159,14 @@ static void init_main_window(struct main_window *w)
 	g_signal_connect(w->gain_spin_button, "value_changed", G_CALLBACK(handle_gain_change), w);
 
 	// Auto gain button
-	GtkWidget *auto_button = gtk_button_new_with_label("Auto");
+	GtkWidget *auto_button = gtk_button_new_with_label(_("Auto"));
 	gtk_widget_set_tooltip_text(auto_button,
-		"Adjust the gain to bring the input peak to ~0.8 (0.5 s average)");
+		_("Adjust the gain to bring the input peak to ~0.8 (0.5 s average)"));
 	g_signal_connect(auto_button, "clicked", G_CALLBACK(handle_auto_gain), w);
 	gtk_box_pack_start(GTK_BOX(hbox), auto_button, FALSE, FALSE, 0);
 
 	// Cutoff label + spin button
-	label = gtk_label_new("cutoff");
+	label = gtk_label_new(_("cutoff"));
 	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 	w->cutoff_spin_button = gtk_spin_button_new_with_range(1000, 8000, 100);
 	gtk_spin_button_set_value(GTK_SPIN_BUTTON(w->cutoff_spin_button), w->filter_cutoff);
@@ -1173,7 +1175,7 @@ static void init_main_window(struct main_window *w)
 	g_signal_connect(w->cutoff_spin_button, "value_changed", G_CALLBACK(handle_cutoff_change), w);
 
 	// Source indicator
-	label = gtk_label_new("mic");
+	label = gtk_label_new(_("mic"));
 	w->source_label = label;
 	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
@@ -1182,23 +1184,23 @@ static void init_main_window(struct main_window *w)
 	gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(w->level_bar), 0);
 	gtk_widget_set_size_request(w->level_bar, 120, -1);
 	gtk_box_pack_start(GTK_BOX(hbox), w->level_bar, FALSE, FALSE, 0);
-	w->clip_label = gtk_label_new("CLIP");
+	w->clip_label = gtk_label_new(_("CLIP"));
 	gtk_box_pack_start(GTK_BOX(hbox), w->clip_label, FALSE, FALSE, 0);
 	gtk_widget_hide(w->clip_label);
 	w->snr_label = gtk_label_new("SNR -- dB");
 	gtk_box_pack_start(GTK_BOX(hbox), w->snr_label, FALSE, FALSE, 0);
 
 	// Position selector
-	label = gtk_label_new("pos");
+	label = gtk_label_new(_("pos"));
 	gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 	w->position_combo = gtk_combo_box_text_new();
-	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->position_combo), "none");
-	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->position_combo), "dial up");
-	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->position_combo), "dial down");
-	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->position_combo), "crown up");
-	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->position_combo), "crown down");
-	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->position_combo), "crown left");
-	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->position_combo), "crown right");
+	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->position_combo), _("none"));
+	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->position_combo), _("dial up"));
+	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->position_combo), _("dial down"));
+	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->position_combo), _("crown up"));
+	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->position_combo), _("crown down"));
+	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->position_combo), _("crown left"));
+	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->position_combo), _("crown right"));
 	gtk_combo_box_set_active(GTK_COMBO_BOX(w->position_combo), 0);
 	gtk_box_pack_start(GTK_BOX(hbox), w->position_combo, FALSE, FALSE, 0);
 	g_signal_connect(w->position_combo, "changed", G_CALLBACK(handle_position_change), w);
@@ -1208,13 +1210,13 @@ static void init_main_window(struct main_window *w)
 	gtk_box_pack_start(GTK_BOX(hbox), empty, TRUE, FALSE, 0);
 
 	// Snapshot button
-	w->snapshot_button = gtk_button_new_with_label("Take Snapshot");
+	w->snapshot_button = gtk_button_new_with_label(_("Take Snapshot"));
 	gtk_box_pack_start(GTK_BOX(hbox), w->snapshot_button, FALSE, FALSE, 0);
 	gtk_widget_set_sensitive(w->snapshot_button, FALSE);
 	g_signal_connect(w->snapshot_button, "clicked", G_CALLBACK(handle_snapshot), w);
 
 	// Snapshot name field
-	GtkWidget *name_label = gtk_label_new("Current snapshot:");
+	GtkWidget *name_label = gtk_label_new(_("Current snapshot:"));
 	w->snapshot_name_entry = gtk_entry_new();
 	w->snapshot_name = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
 	gtk_box_pack_start(GTK_BOX(w->snapshot_name), name_label, FALSE, FALSE, 0);
@@ -1240,39 +1242,39 @@ static void init_main_window(struct main_window *w)
 	gtk_box_pack_end(GTK_BOX(hbox), command_menu_button, FALSE, FALSE, 0);
 	
 	// ... Open
-	GtkWidget *open_item = gtk_menu_item_new_with_label("Open");
+	GtkWidget *open_item = gtk_menu_item_new_with_label(_("Open"));
 	gtk_menu_shell_append(GTK_MENU_SHELL(command_menu), open_item);
 	g_signal_connect(open_item, "activate", G_CALLBACK(load), w);
 
 	// ... Save
-	w->save_item = gtk_menu_item_new_with_label("Save current display");
+	w->save_item = gtk_menu_item_new_with_label(_("Save current display"));
 	gtk_menu_shell_append(GTK_MENU_SHELL(command_menu), w->save_item);
 	g_signal_connect(w->save_item, "activate", G_CALLBACK(save_current), w);
 	gtk_widget_set_sensitive(w->save_item, FALSE);
 
 	// ... Save all
-	w->save_all_item = gtk_menu_item_new_with_label("Save all snapshots");
+	w->save_all_item = gtk_menu_item_new_with_label(_("Save all snapshots"));
 	gtk_menu_shell_append(GTK_MENU_SHELL(command_menu), w->save_all_item);
 	g_signal_connect(w->save_all_item, "activate", G_CALLBACK(save_all), w);
 	gtk_widget_set_sensitive(w->save_all_item, FALSE);
 
 	// ... Save session log
-	GtkWidget *session_item = gtk_menu_item_new_with_label("Save session log");
+	GtkWidget *session_item = gtk_menu_item_new_with_label(_("Save session log"));
 	gtk_menu_shell_append(GTK_MENU_SHELL(command_menu), session_item);
 	g_signal_connect(session_item, "activate", G_CALLBACK(handle_save_session_log), w);
 
 	// ... Export report
-	GtkWidget *report_item = gtk_menu_item_new_with_label("Export report...");
+	GtkWidget *report_item = gtk_menu_item_new_with_label(_("Export report..."));
 	gtk_menu_shell_append(GTK_MENU_SHELL(command_menu), report_item);
 	g_signal_connect(report_item, "activate", G_CALLBACK(handle_export_report), w);
 
 	// ... Open recording
-	GtkWidget *open_rec_item = gtk_menu_item_new_with_label("Open recording...");
+	GtkWidget *open_rec_item = gtk_menu_item_new_with_label(_("Open recording..."));
 	gtk_menu_shell_append(GTK_MENU_SHELL(command_menu), open_rec_item);
 	g_signal_connect(open_rec_item, "activate", G_CALLBACK(handle_open_recording), w);
 
 	// ... Close recording
-	w->close_rec_item = gtk_menu_item_new_with_label("Close recording");
+	w->close_rec_item = gtk_menu_item_new_with_label(_("Close recording"));
 	gtk_menu_shell_append(GTK_MENU_SHELL(command_menu), w->close_rec_item);
 	g_signal_connect(w->close_rec_item, "activate", G_CALLBACK(handle_close_recording), w);
 	gtk_widget_set_sensitive(w->close_rec_item, FALSE);
@@ -1280,37 +1282,37 @@ static void init_main_window(struct main_window *w)
 	gtk_menu_shell_append(GTK_MENU_SHELL(command_menu), gtk_separator_menu_item_new());
 
 	// ... Start recording
-	w->record_item = gtk_menu_item_new_with_label("Record to file...");
+	w->record_item = gtk_menu_item_new_with_label(_("Record to file..."));
 	gtk_menu_shell_append(GTK_MENU_SHELL(command_menu), w->record_item);
 	g_signal_connect(w->record_item, "activate", G_CALLBACK(handle_start_recording), w);
 
 	// ... Stop recording
-	w->stop_record_item = gtk_menu_item_new_with_label("Stop recording");
+	w->stop_record_item = gtk_menu_item_new_with_label(_("Stop recording"));
 	gtk_menu_shell_append(GTK_MENU_SHELL(command_menu), w->stop_record_item);
 	g_signal_connect(w->stop_record_item, "activate", G_CALLBACK(handle_stop_recording), w);
 	gtk_widget_set_sensitive(w->stop_record_item, FALSE);
 
 	// ... Light checkbox
-	w->light_checkbox = gtk_check_menu_item_new_with_label("Light algorithm");
+	w->light_checkbox = gtk_check_menu_item_new_with_label(_("Light algorithm"));
 	gtk_menu_shell_append(GTK_MENU_SHELL(command_menu), w->light_checkbox);
 	g_signal_connect(w->light_checkbox, "toggled", G_CALLBACK(handle_light), w);
 	gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(w->light_checkbox), w->is_light);
 
 	// ... Calibrate checkbox
-	w->cal_button = gtk_check_menu_item_new_with_label("Calibrate");
+	w->cal_button = gtk_check_menu_item_new_with_label(_("Calibrate"));
 	gtk_menu_shell_append(GTK_MENU_SHELL(command_menu), w->cal_button);
 	g_signal_connect(w->cal_button, "toggled", G_CALLBACK(handle_calibrate), w);
 
 	gtk_menu_shell_append(GTK_MENU_SHELL(command_menu), gtk_separator_menu_item_new());
 
 	// ... Close all
-	w->close_all_item = gtk_menu_item_new_with_label("Close all snapshots");
+	w->close_all_item = gtk_menu_item_new_with_label(_("Close all snapshots"));
 	gtk_menu_shell_append(GTK_MENU_SHELL(command_menu), w->close_all_item);
 	g_signal_connect(w->close_all_item, "activate", G_CALLBACK(close_all), w);
 	gtk_widget_set_sensitive(w->close_all_item, FALSE);
 
 	// ... Quit
-	GtkWidget *quit_item = gtk_menu_item_new_with_label("Quit");
+	GtkWidget *quit_item = gtk_menu_item_new_with_label(_("Quit"));
 	gtk_menu_shell_append(GTK_MENU_SHELL(command_menu), quit_item);
 	g_signal_connect(quit_item, "activate", G_CALLBACK(handle_quit), w);
 
@@ -1446,7 +1448,7 @@ static void start_interface(GApplication* app, void *p)
 		g_mkdir_with_parents(dir, 0755);
 		char *db = g_build_filename(dir, "tg.db", NULL);
 		if(watchdb_open(db))
-			error("Cannot open watch database %s", db);
+			error(_("Cannot open watch database %s"), db);
 		g_free(db);
 		g_free(dir);
 	}
@@ -1485,7 +1487,7 @@ static void start_interface(GApplication* app, void *p)
 
 	w->computer = start_computer(w->nominal_sr, w->bph, w->la, w->cal, w->is_light);
 	if(!w->computer) {
-		error("Error starting computation thread");
+		error(_("Error starting computation thread"));
 		g_application_quit(app);
 		return;
 	}
@@ -1543,6 +1545,15 @@ static void handle_open(GApplication* app, GFile **files, int cnt, char *hint, v
 int main(int argc, char **argv)
 {
 	gtk_disable_setlocale();
+
+	/* gtk_disable_setlocale keeps LC_NUMERIC in the C locale (spin buttons
+	 * parse/format with '.' decimals); set only the message locale so
+	 * bindtextdomain can pick up the user's language. */
+	setlocale(LC_MESSAGES, "");
+
+	bindtextdomain(GETTEXT_PACKAGE, LOCALEDIR);
+	bind_textdomain_codeset(GETTEXT_PACKAGE, "UTF-8");
+	textdomain(GETTEXT_PACKAGE);
 
 	int ai;
 	for(ai = 1; ai < argc; ai++)

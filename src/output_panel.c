@@ -18,6 +18,7 @@
 
 #include "tg.h"
 #include "stats.h"
+#include <glib/gi18n.h>
 
 // Zoom slider ranges from 1 to 100
 static const double zoom_min = 1, zoom_max = 100, zoom_mid = (zoom_min + zoom_max)/2;
@@ -230,7 +231,7 @@ static gboolean output_draw_event(GtkWidget *widget, cairo_t *c, struct output_p
 		cairo_move_to(c,x,y);
 		{
 			double a = 0;
-			char *s[] = {"wait", "acq.", "done", "fail", NULL}, **t = s;
+			char *s[] = {_("wait"), _("acq."), _("done"), _("fail"), NULL}, **t = s;
 			for(;*t;t++) {
 				cairo_text_extents(c,*t,&extents);
 				if(a < extents.x_advance) a = extents.x_advance;
@@ -240,15 +241,15 @@ static gboolean output_draw_event(GtkWidget *widget, cairo_t *c, struct output_p
 		switch(snst->cal_state) {
 			case 1:
 				cairo_set_source(c,green);
-				cairo_show_text(c,"done");
+				cairo_show_text(c,_("done"));
 				break;
 			case 0:
 				cairo_set_source(c, snst->signal == NSTEPS ? white : yellow);
-				cairo_show_text(c, snst->signal == NSTEPS ? "acq." : "wait");
+				cairo_show_text(c, snst->signal == NSTEPS ? _("acq.") : _("wait"));
 				break;
 			case -1:
 				cairo_set_source(c,red);
-				cairo_show_text(c,"fail");
+				cairo_show_text(c,_("fail"));
 				break;
 		}
 		cairo_set_source(c, white);
@@ -1307,14 +1308,14 @@ struct output_panel *init_output_panel(struct computer *comp, struct snapshot *s
 
 	// CLEAR button
 	if(comp) {
-		op->clear_button = gtk_button_new_with_label("Clear");
+		op->clear_button = gtk_button_new_with_label(_("Clear"));
 		gtk_box_pack_start(GTK_BOX(hbox3), op->clear_button, TRUE, TRUE, 0);
 		g_signal_connect (op->clear_button, "clicked", G_CALLBACK(handle_clear_trace), op);
 		gtk_widget_set_sensitive(op->clear_button, !snst->calibrate);
 	}
 
 	// CENTER button
-	GtkWidget *center_button = gtk_button_new_with_label("Center");
+	GtkWidget *center_button = gtk_button_new_with_label(_("Center"));
 	gtk_box_pack_start(GTK_BOX(hbox3), center_button, TRUE, TRUE, 0);
 	g_signal_connect (center_button, "clicked", G_CALLBACK(handle_center_trace), op);
 

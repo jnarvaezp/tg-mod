@@ -1,0 +1,383 @@
+# Spanish translations for tg.
+# This file is distributed under the same license as the tg package.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: tg\n"
+"Report-Msgid-Bugs-To: vacaboja@gmail.com\n"
+"PO-Revision-Date: 2026-08-28 00:00+0000\n"
+"Last-Translator: Automatically generated\n"
+"Language-Team: Spanish\n"
+"Language: es\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "%s:  sessions %d,  mean %+.1f s/d,  sigma %.1f"
+msgstr "%s:  sesiones %d,  media %+.1f s/d,  sigma %.1f"
+
+msgid "<b>Session</b>"
+msgstr "<b>Sesión</b>"
+
+msgid "<b>Watches</b>"
+msgstr "<b>Relojes</b>"
+
+msgid "Adjust the gain to bring the input peak to ~0.8 (0.5 s average)"
+msgstr ""
+"Ajusta la ganancia para llevar el pico de entrada a ~0.8 (promedio de 0.5 s)"
+
+msgid "All files"
+msgstr "Todos los archivos"
+
+msgid "Amp (deg)"
+msgstr "Amplitud (deg)"
+
+msgid "Audio device enumeration failed: %s"
+msgstr "Falló la enumeración de dispositivos de audio: %s"
+
+msgid "Auto"
+msgstr "Auto"
+
+msgid "BE (ms)"
+msgstr "BE (ms)"
+
+msgid "Brand"
+msgstr "Marca"
+
+msgid "CLIP"
+msgstr "CLIP"
+
+msgid "Calibrate"
+msgstr "Calibrar"
+
+msgid "Cancel"
+msgstr "Cancelar"
+
+msgid "Cannot add watch"
+msgstr "No se pudo añadir el reloj"
+
+msgid "Cannot create log directory %s"
+msgstr "No se pudo crear el directorio de registros %s"
+
+msgid "Cannot create report directory %s"
+msgstr "No se pudo crear el directorio de informes %s"
+
+msgid "Cannot delete watch"
+msgstr "No se pudo eliminar el reloj"
+
+msgid "Cannot open watch database %s"
+msgstr "No se pudo abrir la base de datos de relojes %s"
+
+msgid "Cannot read info for the default audio device"
+msgstr "No se pudo leer la información del dispositivo de audio predeterminado"
+
+msgid "Cannot read info for the selected audio device"
+msgstr "No se pudo leer la información del dispositivo de audio seleccionado"
+
+msgid "Cannot save session"
+msgstr "No se pudo guardar la sesión"
+
+msgid "Center"
+msgstr "Centrar"
+
+msgid "Clear"
+msgstr "Limpiar"
+
+msgid "Close"
+msgstr "Cerrar"
+
+msgid "Close all snapshots"
+msgstr "Cerrar todos los snapshots"
+
+msgid "Close recording"
+msgstr "Cerrar grabación"
+
+msgid "Current snapshot:"
+msgstr "Snapshot actual:"
+
+msgid "Date"
+msgstr "Fecha"
+
+msgid "Default audio device has no input channels"
+msgstr "El dispositivo de audio predeterminado no tiene canales de entrada"
+
+msgid "Delete"
+msgstr "Eliminar"
+
+msgid "Delete session"
+msgstr "Eliminar sesión"
+
+msgid "Delete the selected session from the history?"
+msgstr "¿Eliminar la sesión seleccionada del historial?"
+
+msgid "Delete watch %s and all its sessions?"
+msgstr "¿Eliminar el reloj %s y todas sus sesiones?"
+
+msgid "Error closing audio: %s"
+msgstr "Error al cerrar el audio: %s"
+
+msgid "Error opening audio input: %s"
+msgstr "Error al abrir la entrada de audio: %s"
+
+msgid "Error opening file\n"
+msgstr "Error al abrir el archivo\n"
+
+msgid "Error pausing audio: %s"
+msgstr "Error al pausar el audio: %s"
+
+msgid "Error reading file: %s"
+msgstr "Error al leer el archivo: %s"
+
+msgid "Error resuming audio: %s"
+msgstr "Error al reanudar el audio: %s"
+
+msgid "Error starting computation thread"
+msgstr "Error al iniciar el hilo de cómputo"
+
+msgid "Error writing file"
+msgstr "Error al escribir el archivo"
+
+msgid "Evolution"
+msgstr "Evolución"
+
+msgid "Export history..."
+msgstr "Exportar historial..."
+
+msgid "Export report..."
+msgstr "Exportar informe..."
+
+msgid "Export this watch's session history to CSV and PDF"
+msgstr "Exporta el historial de sesiones de este reloj a CSV y PDF"
+
+msgid "Failed to delete session"
+msgstr "Error al eliminar la sesión"
+
+msgid "Failed to open recording: %s"
+msgstr "Error al abrir la grabación: %s"
+
+msgid "Failed to re-open audio input device"
+msgstr "Error al reabrir el dispositivo de entrada de audio"
+
+msgid "Failed to restart computation thread"
+msgstr "Error al reiniciar el hilo de cómputo"
+
+msgid "Failed to save watch defaults"
+msgstr "Error al guardar los valores predeterminados del reloj"
+
+msgid "Failed to start recording to %s"
+msgstr "Error al iniciar la grabación en %s"
+
+msgid "File %s already exists. Do you want to replace it?"
+msgstr "El archivo %s ya existe. ¿Desea reemplazarlo?"
+
+msgid "Finish & save"
+msgstr "Terminar y guardar"
+
+msgid "History export: %d file(s) failed in %s"
+msgstr "Exportación de historial: fallaron %d archivo(s) en %s"
+
+msgid "History exported to\n%s/%s.{csv,pdf}"
+msgstr "Historial exportado a\n%s/%s.{csv,pdf}"
+
+msgid "Light algorithm"
+msgstr "Algoritmo ligero"
+
+msgid "Mean (s/d)"
+msgstr "Media (s/d)"
+
+msgid "Model"
+msgstr "Modelo"
+
+msgid "Name"
+msgstr "Nombre"
+
+msgid "New watch"
+msgstr "Nuevo reloj"
+
+msgid "New watch..."
+msgstr "Nuevo reloj..."
+
+msgid "No audio input device found"
+msgstr "No se encontró dispositivo de entrada de audio"
+
+msgid "No default audio input device found"
+msgstr "No se encontró dispositivo de entrada de audio predeterminado"
+
+msgid "No sessions recorded"
+msgstr "No hay sesiones grabadas"
+
+msgid "No sessions recorded for this watch"
+msgstr "No hay sesiones grabadas para este reloj"
+
+msgid "OK"
+msgstr "OK"
+
+msgid "Open"
+msgstr "Abrir"
+
+msgid "Open recording"
+msgstr "Abrir grabación"
+
+msgid "Open recording..."
+msgstr "Abrir grabación..."
+
+msgid "Position"
+msgstr "Posición"
+
+msgid "Quit"
+msgstr "Salir"
+
+msgid "Rate evolution"
+msgstr "Evolución del ritmo"
+
+msgid "Rate evolution across sessions"
+msgstr "Evolución del ritmo entre sesiones"
+
+msgid "Real time"
+msgstr "Tiempo real"
+
+msgid "Record to file"
+msgstr "Grabar a archivo"
+
+msgid "Record to file..."
+msgstr "Grabar a archivo..."
+
+msgid "Report saved to\n%s/%s.{csv,pdf}"
+msgstr "Informe guardado en\n%s/%s.{csv,pdf}"
+
+msgid "Report: %d file(s) failed in %s"
+msgstr "Informe: fallaron %d archivo(s) en %s"
+
+msgid "Save"
+msgstr "Guardar"
+
+msgid "Save all snapshots"
+msgstr "Guardar todos los snapshots"
+
+msgid "Save cfg"
+msgstr "Guardar conf"
+
+msgid "Save current display"
+msgstr "Guardar vista actual"
+
+msgid "Save session log"
+msgstr "Guardar registro de sesión"
+
+msgid "Save the current BPH and lift angle as this watch's defaults"
+msgstr ""
+"Guarda el bph y el ángulo de elevación actuales como valores "
+"predeterminados de este reloj"
+
+msgid "Saved input device '%s' not found; using the system default"
+msgstr ""
+"No se encontró el dispositivo de entrada guardado '%s'; se usa el "
+"predeterminado del sistema"
+
+msgid "Select a watch first"
+msgstr "Seleccione primero un reloj"
+
+msgid "Selected audio device has no input channels"
+msgstr "El dispositivo de audio seleccionado no tiene canales de entrada"
+
+msgid "Session log saved to\n%s/%s.{json,csv,raw}"
+msgstr "Registro de sesión guardado en\n%s/%s.{json,csv,raw}"
+
+msgid "Session log: %d file(s) failed in %s"
+msgstr "Registro de sesión: fallaron %d archivo(s) en %s"
+
+msgid "Start session"
+msgstr "Iniciar sesión"
+
+msgid "Stop recording"
+msgstr "Detener grabación"
+
+msgid "System default"
+msgstr "Predeterminado del sistema"
+
+msgid "Take Snapshot"
+msgstr "Tomar snapshot"
+
+msgid "Unable to initialize computing thread"
+msgstr "No se pudo inicializar el hilo de cómputo"
+
+msgid "Watch name is required"
+msgstr "El nombre del reloj es obligatorio"
+
+msgid "acq."
+msgstr "adq."
+
+msgid "bph"
+msgstr "bph"
+
+msgid "cal"
+msgstr "cal"
+
+msgid "crown down"
+msgstr "corona abajo"
+
+msgid "crown left"
+msgstr "corona a la izquierda"
+
+msgid "crown right"
+msgstr "corona a la derecha"
+
+msgid "crown up"
+msgstr "corona arriba"
+
+msgid "cutoff"
+msgstr "corte"
+
+msgid "dial down"
+msgstr "esfera abajo"
+
+msgid "dial up"
+msgstr "esfera arriba"
+
+msgid "done"
+msgstr "hecho"
+
+msgid "fail"
+msgstr "fallo"
+
+msgid "gain"
+msgstr "ganancia"
+
+msgid "guess"
+msgstr "estimar"
+
+msgid "lift angle"
+msgstr "ángulo de elevación"
+
+msgid "mic"
+msgstr "mic"
+
+msgid "n"
+msgstr "n"
+
+msgid "no session"
+msgstr "sin sesión"
+
+msgid "none"
+msgstr "ninguna"
+
+msgid "pos"
+msgstr "pos"
+
+msgid "recording"
+msgstr "grabación"
+
+msgid "recording session: %s (%02d:%02d)"
+msgstr "grabando sesión: %s (%02d:%02d)"
+
+msgid "recording..."
+msgstr "grabando..."
+
+msgid "session note"
+msgstr "nota de sesión"
+
+msgid "wait"
+msgstr "espera"
+
+msgid "σ"
+msgstr "σ"

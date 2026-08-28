@@ -17,6 +17,7 @@
 */
 
 #include "tg.h"
+#include <glib/gi18n.h>
 
 static int count_events(const uint64_t *events, int wp, int nevents)
 {
@@ -387,7 +388,7 @@ struct computer *start_computer(int nominal_sr, int bph, double la, int cal, int
 	if(    pthread_mutex_init(&c->mutex, NULL)
 	    || pthread_cond_init(&c->cond, NULL)
 	    || pthread_create(&c->thread, NULL, computing_thread, c)) {
-		error("Unable to initialize computing thread");
+		error(_("Unable to initialize computing thread"));
 		return NULL;
 	}
 

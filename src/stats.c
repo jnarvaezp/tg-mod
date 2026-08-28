@@ -17,6 +17,7 @@
 */
 
 #include "stats.h"
+#include <glib/gi18n.h>
 #include <pthread.h>
 #include <math.h>
 
@@ -45,9 +46,10 @@ void stats_add(const struct stats_point *p)
 
 const char *position_name(int pos)
 {
-	static const char *names[POSITION_CR + 1] = {
-		"none", "dial up", "dial down", "crown up", "crown down",
-		"crown left", "crown right"
+	/* Non-static: the initializer calls gettext at runtime. */
+	const char *names[POSITION_CR + 1] = {
+		_("none"), _("dial up"), _("dial down"), _("crown up"), _("crown down"),
+		_("crown left"), _("crown right")
 	};
 	return pos >= POSITION_NONE && pos <= POSITION_CR ? names[pos] : "?";
 }

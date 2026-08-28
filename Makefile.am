@@ -34,7 +34,8 @@ LIBS = $(GTK_LIBS) \
        -lpthread \
        -lm
 
-AM_CPPFLAGS = -DPROGRAM_NAME=\"Tg\" -DVERSION=\"$(PACKAGE_VERSION)\"
+AM_CPPFLAGS = -DPROGRAM_NAME=\"Tg\" -DVERSION=\"$(PACKAGE_VERSION)\" \
+	      -DGETTEXT_PACKAGE=\"$(GETTEXT_PACKAGE)\" -DLOCALEDIR=\"$(LOCALEDIR)\"
 tg_timer_dbg_CPPFLAGS = $(AM_CPPFLAGS) -DDEBUG
 
 AM_CFLAGS = $(GTK_CFLAGS) \
@@ -73,7 +74,18 @@ EXTRA_DIST = autogen.sh \
 	     icons \
 	     packaging \
 	     LICENSE \
-	     README.md
+	     README.md \
+	     po/es.po
+
+po/es.gmo: po/es.po
+	@mkdir -p po
+	msgfmt -o $@ $<
+
+all-local: po/es.gmo
+
+install-data-local:
+	$(MKDIR_P) $(DESTDIR)$(LOCALEDIR)/es/LC_MESSAGES
+	$(INSTALL_DATA) po/es.gmo $(DESTDIR)$(LOCALEDIR)/es/LC_MESSAGES/tg.mo
 
 .rc.o:
 	$(WINDRES) $< -O coff -o $@

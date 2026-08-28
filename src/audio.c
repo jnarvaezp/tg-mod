@@ -18,6 +18,7 @@
 
 #include "tg.h"
 #include "wav.h"
+#include <glib/gi18n.h>
 #include <portaudio.h>
 
 /* Huge buffer of audio */
@@ -281,7 +282,7 @@ int start_portaudio(int *nominal_sample_rate, double *real_sample_rate, const ch
 	/* Choose input device: preferred (by name) if provided, else system default */
 	int dev_count = Pa_GetDeviceCount();
 	if(dev_count < 0) {
-		error("Audio device enumeration failed: %s", Pa_GetErrorText(dev_count));
+		error(_("Audio device enumeration failed: %s"), Pa_GetErrorText(dev_count));
 		return 1;
 	}
 	PaDeviceIndex chosen = Pa_GetDefaultInputDevice();
@@ -292,21 +293,21 @@ int start_portaudio(int *nominal_sample_rate, double *real_sample_rate, const ch
 			debug("Using saved input device '%s' (index %d)\n", preferred, found);
 		} else {
 			debug("Saved input device '%s' not found; falling back to default\n", preferred);
-			error("Saved input device '%s' not found; using the system default", preferred);
+			error(_("Saved input device '%s' not found; using the system default"), preferred);
 		}
 	}
 	if(chosen == paNoDevice) {
-		error("No audio input device found");
+		error(_("No audio input device found"));
 		return 1;
 	}
 	const PaDeviceInfo *chosen_info = Pa_GetDeviceInfo(chosen);
 	if(!chosen_info) {
-		error("Cannot read info for the selected audio device");
+		error(_("Cannot read info for the selected audio device"));
 		return 1;
 	}
 	long channels = chosen_info->maxInputChannels;
 	if(channels == 0) {
-		error("Selected audio device has no input channels");
+		error(_("Selected audio device has no input channels"));
 		return 1;
 	}
 	if(channels > 2) channels = 2;
@@ -331,17 +332,17 @@ int start_portaudio(int *nominal_sample_rate, double *real_sample_rate, const ch
 		      Pa_GetErrorText(err));
 		PaDeviceIndex def = Pa_GetDefaultInputDevice();
 		if(def == paNoDevice) {
-			error("No default audio input device found");
+			error(_("No default audio input device found"));
 			return 1;
 		}
 		const PaDeviceInfo *def_info = Pa_GetDeviceInfo(def);
 		if(!def_info) {
-			error("Cannot read info for the default audio device");
+			error(_("Cannot read info for the default audio device"));
 			return 1;
 		}
 		long def_channels = def_info->maxInputChannels;
 		if(def_channels == 0) {
-			error("Default audio device has no input channels");
+			error(_("Default audio device has no input channels"));
 			return 1;
 		}
 		if(def_channels > 2) def_channels = 2;
@@ -374,7 +375,7 @@ end:
 	return 0;
 
 error:
-	error("Error opening audio input: %s", Pa_GetErrorText(err));
+	error(_("Error opening audio input: %s"), Pa_GetErrorText(err));
 	return 1;
 }
 
@@ -383,7 +384,7 @@ int terminate_portaudio()
 	debug("Closing portaudio\n");
 	PaError err = Pa_Terminate();
 	if(err != paNoError) {
-		error("Error closing audio: %s", Pa_GetErrorText(err));
+		error(_("Error closing audio: %s"), Pa_GetErrorText(err));
 		return 1;
 	}
 	pa_stream = NULL;
@@ -534,7 +535,7 @@ int pause_portaudio(void)
 	if(pa_stream) {
 		PaError err = Pa_StopStream(pa_stream);
 		if(err != paNoError && err != paStreamIsStopped) {
-			error("Error pausing audio: %s", Pa_GetErrorText(err));
+			error(_("Error pausing audio: %s"), Pa_GetErrorText(err));
 			return 1;
 		}
 	}
@@ -546,7 +547,7 @@ int resume_portaudio(void)
 	if(pa_stream) {
 		PaError err = Pa_StartStream(pa_stream);
 		if(err != paNoError) {
-			error("Error resuming audio: %s", Pa_GetErrorText(err));
+			error(_("Error resuming audio: %s"), Pa_GetErrorText(err));
 			return 1;
 		}
 	}

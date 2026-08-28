@@ -62,4 +62,5 @@ Makefile.in
 # build directories
 /deb
 /msi
+/po/*.gmo
 configure~
