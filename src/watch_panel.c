@@ -72,9 +72,9 @@ static void update_session_status(struct main_window *w)
 
 static void rebuild_session_tree(struct main_window *w)
 {
-	GtkListStore *store = gtk_list_store_new(7,
+	GtkListStore *store = gtk_list_store_new(8,
 		G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING,
-		G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
+		G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_INT64);
 	int i;
 
 	for(i = 0; i < watchdb_session_count(); i++) {
@@ -93,16 +93,61 @@ static void rebuild_session_tree(struct main_window *w)
 			snprintf(date, sizeof(date), "?");
 		snprintf(pos, sizeof(pos), "%s", position_name(s->position));
 		snprintf(nstr, sizeof(nstr), "%d", s->n);
-		snprintf(mean, sizeof(mean), "%.1f", s->mean);
-		snprintf(sigma, sizeof(sigma), "%.1f", s->sigma);
-		snprintf(be, sizeof(be), "%.1f", s->mean_be);
-		snprintf(amp, sizeof(amp), "%.0f", s->mean_amp);
+		if(s->n > 0) {
+			/* Rates in s/d with explicit sign. */
+			snprintf(mean, sizeof(mean), "%+.1f", s->mean);
+			snprintf(sigma, sizeof(sigma), "%.1f", s->sigma);
+			snprintf(be, sizeof(be), "%.1f", s->mean_be);
+			snprintf(amp, sizeof(amp), "%.0f", s->mean_amp);
+		} else {
+			/* Session captured without a valid signal: not meaningful. */
+			snprintf(mean, sizeof(mean), "---");
+			snprintf(sigma, sizeof(sigma), "---");
+			snprintf(be, sizeof(be), "---");
+			snprintf(amp, sizeof(amp), "---");
+		}
 		gtk_list_store_append(store, &iter);
 		gtk_list_store_set(store, &iter,
-			0, date, 1, pos, 2, nstr, 3, mean, 4, sigma, 5, be, 6, amp, -1);
+			0, date, 1, pos, 2, nstr, 3, mean, 4, sigma, 5, be, 6, amp,
+			7, (gint64)s->id, -1);
 	}
 	gtk_tree_view_set_model(GTK_TREE_VIEW(w->session_tree), GTK_TREE_MODEL(store));
 	g_object_unref(store);
+	w->selected_session_id = -1;
+	gtk_widget_set_sensitive(w->session_delete_button, FALSE);
+}
+
+static void on_session_selected(GtkTreeSelection *sel, struct main_window *w)
+{
+	GtkTreeModel *model;
+	GtkTreeIter iter;
+
+	w->selected_session_id = -1;
+	if(gtk_tree_selection_get_selected(sel, &model, &iter))
+		gtk_tree_model_get(model, &iter, 7, &w->selected_session_id, -1);
+	gtk_widget_set_sensitive(w->session_delete_button, w->selected_session_id >= 0);
+}
+
+static void on_delete_session_clicked(GtkButton *button, struct main_window *w)
+{
+	GtkWidget *dialog;
+	int response;
+
+	UNUSED(button);
+	if(w->selected_session_id < 0) return;
+
+	dialog = gtk_message_dialog_new(GTK_WINDOW(w->window),
+		GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+		GTK_MESSAGE_QUESTION, GTK_BUTTONS_OK_CANCEL,
+		"Delete the selected session from the history?");
+	response = gtk_dialog_run(GTK_DIALOG(dialog));
+	gtk_widget_destroy(dialog);
+	if(response != GTK_RESPONSE_OK) return;
+
+	if(watchdb_remove_session(w->selected_session_id))
+		error("Failed to delete session");
+	watchdb_load_sessions(w->selected_watch_id);
+	rebuild_session_tree(w);
 }
 
 static void on_watch_selected(GtkListBox *box, GtkListBoxRow *row, struct main_window *w)
@@ -375,12 +420,23 @@ GtkWidget *watch_panel_build(struct main_window *w)
 			gtk_tree_view_column_set_resizable(col, TRUE);
 			gtk_tree_view_append_column(GTK_TREE_VIEW(w->session_tree), col);
 		}
+		/* Column 7 (session id) exists in the store but is not shown. */
 	}
 	scroll = gtk_scrolled_window_new(NULL, NULL);
 	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroll),
 		GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
 	gtk_container_add(GTK_CONTAINER(scroll), w->session_tree);
 	gtk_box_pack_start(GTK_BOX(vbox), scroll, TRUE, TRUE, 0);
+
+	w->session_delete_button = gtk_button_new_with_label("Delete session");
+	g_signal_connect(w->session_delete_button, "clicked",
+		G_CALLBACK(on_delete_session_clicked), w);
+	gtk_widget_set_sensitive(w->session_delete_button, FALSE);
+	gtk_box_pack_start(GTK_BOX(vbox), w->session_delete_button, FALSE, FALSE, 0);
+	{
+		GtkTreeSelection *sel = gtk_tree_view_get_selection(GTK_TREE_VIEW(w->session_tree));
+		g_signal_connect(sel, "changed", G_CALLBACK(on_session_selected), w);
+	}
 
 	w->session_timeout = g_timeout_add(1000, session_tick, w);
 

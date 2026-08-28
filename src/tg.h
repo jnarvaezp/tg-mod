@@ -371,6 +371,8 @@ struct main_window {
 	GtkWidget *session_status_label;
 	int64_t selected_watch_id;           /* -1 = none */
 	char selected_watch_name[64];
+	int64_t selected_session_id;         /* sesión seleccionada en el historial, -1 = ninguna */
+	GtkWidget *session_delete_button;
 	int session_active;
 	uint64_t session_start_ms;
 	guint session_timeout;
