@@ -59,12 +59,17 @@ struct snapshot *snapshot_clone(struct snapshot *s)
 		t->events = NULL;
 		t->events_tictoc = NULL;
 	}
+	if(s->d) {
+		t->d = malloc(sizeof(*t->d));
+		*t->d = *s->d;
+	}
 	return t;
 }
 
 void snapshot_destroy(struct snapshot *s)
 {
 	if(s->pb) pb_destroy_clone(s->pb);
+	if(s->d) free(s->d);
 	free(s->events_tictoc);
 	free(s->events);
 	free(s);
@@ -112,7 +117,10 @@ static void compute_update(struct computer *c)
 		if(c->actv->pb) pb_destroy_clone(c->actv->pb);
 		c->actv->pb = pb_clone(&p[i]);
 		c->actv->is_old = 0;
-		c->actv->signal = i == NSTEPS-1 && p[i].amp < 0 ? signal-1 : signal;
+		/* Signal's range is 0 to NSTEPS, i.e. the number of steps used.
+		 * The dot graphic shows "no amplitude" with the last dot, so no
+		 * adjustment of the level is done here. */
+		c->actv->signal = signal;
 	} else {
 		c->actv->is_old = 1;
 		c->actv->signal = -signal;
@@ -287,7 +295,7 @@ struct computer *start_computer(int nominal_sr, int bph, double la, int cal, int
 	s->events_tictoc = calloc(EVENTS_COUNT, sizeof(*s->events_tictoc));
 	s->events_wp = 0;
 	s->events_from = 0;
-	s->trace_centering = 0;
+	s->d = NULL;
 	s->guessed_bph = 0;
 	s->rate = 0;
 	s->be = 0;
